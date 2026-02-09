@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 /// App color palette
 class AppColors {
   AppColors._();

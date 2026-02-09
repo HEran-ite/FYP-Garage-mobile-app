@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 /// Font weight constants
 class AppFontWeights {
   AppFontWeights._();
