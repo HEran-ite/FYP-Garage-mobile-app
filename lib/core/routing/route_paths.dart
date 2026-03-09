@@ -2,6 +2,10 @@
 class RoutePaths {
   RoutePaths._();
 
+  // Auth
+  static const String login = '/login';
+  static const String createAccount = '/create-account';
+
   // Dashboard
   static const String dashboard = '/dashboard';
 
