@@ -271,6 +271,7 @@ class _LocationPickerFieldState extends State<LocationPickerField> {
                                 draggable: false,
                               ),
                             },
+                            myLocationEnabled: false,
                             myLocationButtonEnabled: false,
                             zoomControlsEnabled: false,
                           ),

@@ -12,9 +12,28 @@ import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
 import '../widgets/auth_text_field.dart';
 
-/// Login screen - email, password, sign in, and link to sign up
-class LoginPage extends StatelessWidget {
+/// Login screen - email, password, sign in, and link to sign up.
+/// On first build, dispatches [AuthRestoreSession] to restore session from SharedPreferences if present.
+class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
+
+  @override
+  State<LoginPage> createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<LoginPage> {
+  @override
+  void initState() {
+    super.initState();
+    // Defer restore so SharedPreferences platform channel is ready (avoids channel-error on Android).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 150), () {
+        if (mounted) {
+          context.read<AuthBloc>().add(const AuthRestoreSession());
+        }
+      });
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

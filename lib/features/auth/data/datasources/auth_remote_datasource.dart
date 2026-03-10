@@ -6,6 +6,10 @@ import '../models/user_model.dart';
 /// Remote data source for auth (API calls).
 /// Backend: driver-garage-backend branch Garage-profile-Yordi.
 abstract class AuthRemoteDataSource {
+  String? get authToken;
+  void setAuthToken(String? token);
+  void clearAuthToken();
+
   Future<UserModel> login({required String email, required String password});
   Future<UserModel> register(
     RegistrationModel registration, {
@@ -13,4 +17,7 @@ abstract class AuthRemoteDataSource {
     String? licenseFileName,
   });
   Future<UserModel?> getCurrentUser();
+
+  /// Update current garage profile (backend: PATCH /garages/me).
+  Future<UserModel> updateProfile(UserModel user);
 }

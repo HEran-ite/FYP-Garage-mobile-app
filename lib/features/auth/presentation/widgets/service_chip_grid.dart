@@ -5,23 +5,48 @@ import '../../../../core/constants/border_radius.dart';
 import '../../../../core/constants/spacing.dart';
 import '../../../../core/theme/app_colors.dart';
 
-/// Grid of selectable service chips; "Other" can show an optional text field
-class ServiceChipGrid extends StatelessWidget {
+/// Grid of selectable predefined services + list of custom services (each as its own chip).
+class ServiceChipGrid extends StatefulWidget {
   const ServiceChipGrid({
     super.key,
     required this.selectedServices,
     required this.onSelectionChanged,
-    this.otherServicesController,
-    this.showOtherField = false,
+    this.customServiceNames = const [],
+    this.onCustomServiceNamesChanged,
   });
 
   final List<String> selectedServices;
   final ValueChanged<List<String>> onSelectionChanged;
-  final TextEditingController? otherServicesController;
-  final bool showOtherField;
+  final List<String> customServiceNames;
+  final ValueChanged<List<String>>? onCustomServiceNamesChanged;
 
-  static const int _crossAxisCount = 2;
-  static const double _aspectRatio = 3.2;
+  @override
+  State<ServiceChipGrid> createState() => _ServiceChipGridState();
+}
+
+class _ServiceChipGridState extends State<ServiceChipGrid> {
+  final TextEditingController _customInputController = TextEditingController();
+
+  @override
+  void dispose() {
+    _customInputController.dispose();
+    super.dispose();
+  }
+
+  void _addCustom() {
+    final name = _customInputController.text.trim();
+    if (name.isEmpty) return;
+    final next = List<String>.from(widget.customServiceNames);
+    if (next.contains(name)) return;
+    next.add(name);
+    _customInputController.clear();
+    widget.onCustomServiceNamesChanged?.call(next);
+  }
+
+  void _removeCustom(String name) {
+    final next = List<String>.from(widget.customServiceNames)..remove(name);
+    widget.onCustomServiceNamesChanged?.call(next);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,51 +56,81 @@ class ServiceChipGrid extends StatelessWidget {
         GridView.count(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: _crossAxisCount,
+          crossAxisCount: 2,
           mainAxisSpacing: AppSpacing.sm,
           crossAxisSpacing: AppSpacing.sm,
-          childAspectRatio: _aspectRatio,
-          children: AuthConstants.serviceOptions.map((label) {
-            final isSelected = selectedServices.contains(label);
-            final isOther = label == AuthConstants.otherServiceId;
+          childAspectRatio: 3.2,
+          children: AuthConstants.serviceOptionsPredefined.map((label) {
+            final isSelected = widget.selectedServices.contains(label);
             return _ServiceChip(
               label: label,
               isSelected: isSelected,
-              isOther: isOther,
               onTap: () {
-                final next = List<String>.from(selectedServices);
+                final next = List<String>.from(widget.selectedServices);
                 if (isSelected) {
                   next.remove(label);
-                  if (isOther) {
-                    otherServicesController?.clear();
-                  }
                 } else {
                   next.add(label);
                 }
-                onSelectionChanged(next);
+                widget.onSelectionChanged(next);
               },
             );
           }).toList(),
         ),
-        if (showOtherField) ...[
-          const SizedBox(height: AppSpacing.md),
-          TextFormField(
-            controller: otherServicesController,
-            decoration: InputDecoration(
-              labelText: 'Specify Other Services',
-              hintText: AuthConstants.otherServicesPlaceholder,
-              hintStyle: TextStyle(color: AppColors.textSecondary),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppBorderRadius.md),
-                borderSide: const BorderSide(color: AppColors.inputBorder),
+        const SizedBox(height: AppSpacing.md),
+        Text(
+          'Custom services',
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
               ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Wrap(
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
+          children: [
+            ...widget.customServiceNames.map((name) => _CustomServiceChip(
+                  label: name,
+                  onRemove: () => _removeCustom(name),
+                )),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Expanded(
+              child: TextFormField(
+                controller: _customInputController,
+                decoration: InputDecoration(
+                  labelText: 'Add custom service',
+                  hintText: 'e.g. Bodywork, Detailing',
+                  hintStyle: TextStyle(color: AppColors.textSecondary),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppBorderRadius.md),
+                    borderSide: const BorderSide(color: AppColors.inputBorder),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.sm,
+                  ),
+                ),
+                textInputAction: TextInputAction.done,
+                onFieldSubmitted: (_) => _addCustom(),
               ),
             ),
-            maxLength: AuthConstants.maxOtherServicesLength,
-          ),
-        ],
+            const SizedBox(width: AppSpacing.sm),
+            FilledButton(
+              onPressed: _addCustom,
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.textPrimary,
+              ),
+              child: const Text('Add'),
+            ),
+          ],
+        ),
       ],
     );
   }
@@ -85,13 +140,11 @@ class _ServiceChip extends StatelessWidget {
   const _ServiceChip({
     required this.label,
     required this.isSelected,
-    required this.isOther,
     required this.onTap,
   });
 
   final String label;
   final bool isSelected;
-  final bool isOther;
   final VoidCallback onTap;
 
   IconData get _icon {
@@ -108,8 +161,6 @@ class _ServiceChip extends StatelessWidget {
         return Icons.battery_charging_full;
       case 'AC Repair':
         return Icons.ac_unit;
-      case 'Other':
-        return Icons.add;
       default:
         return Icons.build_circle;
     }
@@ -128,8 +179,6 @@ class _ServiceChip extends StatelessWidget {
       case 'Engine Diagnostics':
       case 'AC Repair':
         return AppColors.serviceIconBlue;
-      case 'Other':
-        return AppColors.serviceIconGrey;
       default:
         return AppColors.textSecondary;
     }
@@ -190,6 +239,50 @@ class _ServiceChip extends StatelessWidget {
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _CustomServiceChip extends StatelessWidget {
+  const _CustomServiceChip({
+    required this.label,
+    required this.onRemove,
+  });
+
+  final String label;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(AppBorderRadius.full),
+        border: Border.all(color: AppColors.primary.withOpacity(0.5)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.build_circle_outlined, size: 18, color: AppColors.textPrimary),
+          const SizedBox(width: AppSpacing.xs),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textPrimary,
+                ),
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          GestureDetector(
+            onTap: onRemove,
+            child: Icon(Icons.close, size: 18, color: AppColors.textSecondary),
+          ),
+        ],
       ),
     );
   }

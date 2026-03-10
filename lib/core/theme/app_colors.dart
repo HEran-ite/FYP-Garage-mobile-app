@@ -43,5 +43,8 @@ class AppColors {
   static const serviceIconGrey = Color(0xFF757575);
   static const serviceIconGreen = Color(0xFF43A047);
   static const serviceIconBlue = Color(0xFF1E88E5);
+
+  /// Teal/blue for appointment card detail icons (calendar, clock, pin, phone)
+  static const detailIcon = Color(0xFF26A69A);
 }
 

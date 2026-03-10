@@ -10,5 +10,20 @@ class ApiConstants {
   /// Garage auth paths (relative to base URL)
   static const String garageAuthLogin = '/garages/auth/login';
   static const String garageAuthSignup = '/garages/auth/signup';
+
+  /// Current garage profile (require JWT)
+  static const String garageProfileMe = '/garages/me';
+
+  /// Garage appointments (require JWT)
+  static const String garageAppointments = '/garages/appointments';
+  static String garageAppointmentById(String id) => '/garages/appointments/$id';
+  static String garageAppointmentApprove(String id) => '/garages/appointments/$id/approve';
+  static String garageAppointmentReject(String id) => '/garages/appointments/$id/reject';
+  static String garageAppointmentStatus(String id) => '/garages/appointments/$id/status';
+
+  /// Garage availability (require JWT). Base path: /garages/availability
+  static const String garageAvailabilityMeSlots = '/garages/availability/me/slots';
+  static String garageAvailabilityMeSlotById(String id) =>
+      '/garages/availability/me/slots/$id';
 }
 

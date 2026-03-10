@@ -1,8 +1,11 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../domain/entities/registration_entity.dart';
+import '../../domain/usecases/clear_session_usecase.dart';
 import '../../domain/usecases/login_usecase.dart';
 import '../../domain/usecases/register_usecase.dart';
+import '../../domain/usecases/restore_session_usecase.dart';
+import '../../domain/usecases/update_profile_usecase.dart';
 import 'auth_event.dart';
 import 'auth_state.dart';
 
@@ -11,10 +14,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   AuthBloc({
     required LoginUseCase loginUseCase,
     required RegisterUseCase registerUseCase,
+    required UpdateProfileUseCase updateProfileUseCase,
+    required RestoreSessionUseCase restoreSessionUseCase,
+    required ClearSessionUseCase clearSessionUseCase,
   })  : _loginUseCase = loginUseCase,
         _registerUseCase = registerUseCase,
+        _updateProfileUseCase = updateProfileUseCase,
+        _restoreSessionUseCase = restoreSessionUseCase,
+        _clearSessionUseCase = clearSessionUseCase,
         super(const AuthInitial()) {
     on<AuthLoginRequested>(_onLoginRequested);
+    on<AuthRestoreSession>(_onRestoreSession);
     on<AuthRegistrationStarted>(_onRegistrationStarted);
     on<AuthRegistrationStep1Next>(_onRegistrationStep1Next);
     on<AuthRegistrationStep2Next>(_onRegistrationStep2Next);
@@ -23,10 +33,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthRegistrationSubmitted>(_onRegistrationSubmitted);
     on<AuthRegistrationSuccessDismissed>(_onRegistrationSuccessDismissed);
     on<AuthRegistrationCancelled>(_onRegistrationCancelled);
+    on<AuthLogoutRequested>(_onLogoutRequested);
+    on<AuthProfileUpdated>(_onProfileUpdated);
   }
 
   final LoginUseCase _loginUseCase;
   final RegisterUseCase _registerUseCase;
+  final UpdateProfileUseCase _updateProfileUseCase;
+  final RestoreSessionUseCase _restoreSessionUseCase;
+  final ClearSessionUseCase _clearSessionUseCase;
 
   Future<void> _onLoginRequested(
     AuthLoginRequested event,
@@ -143,5 +158,36 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) {
     emit(const AuthInitial());
+  }
+
+  Future<void> _onRestoreSession(
+    AuthRestoreSession event,
+    Emitter<AuthState> emit,
+  ) async {
+    final user = await _restoreSessionUseCase();
+    if (user != null) {
+      emit(AuthLoginSuccess(user));
+    }
+  }
+
+  Future<void> _onLogoutRequested(
+    AuthLogoutRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    await _clearSessionUseCase();
+    emit(const AuthInitial());
+  }
+
+  Future<void> _onProfileUpdated(
+    AuthProfileUpdated event,
+    Emitter<AuthState> emit,
+  ) async {
+    final user = event.user;
+    emit(AuthProfileUpdating(user));
+    final result = await _updateProfileUseCase(user);
+    result.fold(
+      (failure) => emit(AuthProfileUpdateError(failure.message, user)),
+      (updatedUser) => emit(AuthLoginSuccess(updatedUser)),
+    );
   }
 }

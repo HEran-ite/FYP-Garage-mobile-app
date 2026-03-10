@@ -194,6 +194,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
             onTap: (LatLng pos) {
               setState(() => _position = pos);
             },
+            myLocationEnabled: false,
             myLocationButtonEnabled: false,
             zoomControlsEnabled: true,
           ),

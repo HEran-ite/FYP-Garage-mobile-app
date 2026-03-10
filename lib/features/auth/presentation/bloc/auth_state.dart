@@ -139,3 +139,24 @@ class AuthRegistrationError extends AuthState {
   @override
   List<Object?> get props => [message, step1Data, step2Data];
 }
+
+/// Profile update in progress (keeps [user] so UI can still show form).
+class AuthProfileUpdating extends AuthState {
+  const AuthProfileUpdating(this.user);
+
+  final UserEntity user;
+
+  @override
+  List<Object?> get props => [user];
+}
+
+/// Profile update failed. [user] is kept so app stays logged in with last known data.
+class AuthProfileUpdateError extends AuthState {
+  const AuthProfileUpdateError(this.message, this.user);
+
+  final String message;
+  final UserEntity user;
+
+  @override
+  List<Object?> get props => [message, user];
+}
