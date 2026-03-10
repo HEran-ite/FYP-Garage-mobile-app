@@ -5,6 +5,18 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Read GOOGLE_MAPS_API_KEY from .env (project root); never commit .env (see .gitignore).
+val googleMapsApiKey: String by lazy {
+    val envFile = file("../../.env")
+    if (!envFile.exists()) return@lazy ""
+    envFile.readLines()
+        .firstOrNull { it.trimStart().startsWith("GOOGLE_MAPS_API_KEY=") }
+        ?.substringAfter("GOOGLE_MAPS_API_KEY=")
+        ?.trim()
+        ?.trim('"', '\'')
+        ?: ""
+}
+
 android {
     namespace = "com.example.garage"
     compileSdk = flutter.compileSdkVersion
@@ -28,6 +40,7 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        manifestPlaceholders["googleMapsApiKey"] = googleMapsApiKey
     }
 
     buildTypes {
