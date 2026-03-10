@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, TargetPlatform;
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_maps_flutter_platform_interface/google_maps_flutter_platform_interface.dart';
 import 'package:google_maps_flutter_android/google_maps_flutter_android.dart';
 
-import 'core/config/maps_config.dart';
 import 'core/routing/app_router.dart';
 import 'core/routing/route_paths.dart';
 import 'core/theme/app_theme.dart';
@@ -17,14 +15,6 @@ import 'injection/injection_container.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: '.env').catchError((_) {});
-
-  // Google Maps API key from .env only (no keys in repo). iOS receives it via method channel.
-  if (defaultTargetPlatform == TargetPlatform.iOS) {
-    final key = kGoogleMapsApiKey;
-    if (key.isNotEmpty) {
-      await MethodChannel('garage/maps_config').invokeMethod<void>('setGoogleMapsApiKey', key);
-    }
-  }
 
   // Fix blank map on Android: use Hybrid Composition and warm up Maps SDK
   if (defaultTargetPlatform == TargetPlatform.android) {

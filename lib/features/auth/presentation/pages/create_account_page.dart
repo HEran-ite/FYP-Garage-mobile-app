@@ -291,18 +291,15 @@ class _Step2Content extends StatefulWidget {
 
 class _Step2ContentState extends State<_Step2Content> {
   final _addressController = TextEditingController();
-  final _otherServicesController = TextEditingController();
   List<String> _selectedServices = [];
+  List<String> _customServiceNames = [];
   double? _pickedLat;
   double? _pickedLng;
   String? _pickedPlaceId;
-  bool get _showOtherField =>
-      _selectedServices.contains(AuthConstants.otherServiceId);
 
   @override
   void dispose() {
     _addressController.dispose();
-    _otherServicesController.dispose();
     super.dispose();
   }
 
@@ -349,15 +346,15 @@ class _Step2ContentState extends State<_Step2Content> {
           style: Theme.of(context).textTheme.titleSmall,
         ),
         Text(
-          '(${_selectedServices.length} selected)',
+          '${_selectedServices.length + _customServiceNames.length} selected',
           style: Theme.of(context).textTheme.bodySmall,
         ),
         const SizedBox(height: AppSpacing.sm),
         ServiceChipGrid(
           selectedServices: _selectedServices,
           onSelectionChanged: (v) => setState(() => _selectedServices = v),
-          otherServicesController: _otherServicesController,
-          showOtherField: _showOtherField,
+          customServiceNames: _customServiceNames,
+          onCustomServiceNamesChanged: (v) => setState(() => _customServiceNames = v),
         ),
         const SizedBox(height: AppSpacing.xl),
         Row(
@@ -381,7 +378,7 @@ class _Step2ContentState extends State<_Step2Content> {
             const SizedBox(width: AppSpacing.md),
             Expanded(
               child: FilledButton(
-                onPressed: _selectedServices.isEmpty ||
+                onPressed: (_selectedServices.isEmpty && _customServiceNames.isEmpty) ||
                         _pickedLat == null ||
                         _pickedLng == null
                     ? null
@@ -410,9 +407,9 @@ class _Step2ContentState extends State<_Step2Content> {
                           AuthRegistrationStep2Next(
                             address: _addressController.text.trim(),
                             services: _selectedServices,
-                            otherServices: _showOtherField
-                                ? _otherServicesController.text.trim()
-                                : null,
+                            otherServices: _customServiceNames.isEmpty
+                                ? null
+                                : _customServiceNames.join(', '),
                             latitude: _pickedLat,
                             longitude: _pickedLng,
                             placeId: _pickedPlaceId,

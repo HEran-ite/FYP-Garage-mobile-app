@@ -32,7 +32,7 @@ class AuthConstants {
       'Please specify other services you offer...';
   static const String uploadDocumentLabel = 'Upload Document';
 
-  /// Predefined service options (label only; "Other" is special)
+  /// Predefined service options (label only)
   static const List<String> serviceOptions = [
     'Oil Change',
     'Tire Service',
@@ -41,6 +41,16 @@ class AuthConstants {
     'Battery Service',
     'AC Repair',
     'Other',
+  ];
+
+  /// Predefined only (no "Other"); use for grid. Custom services are listed separately.
+  static const List<String> serviceOptionsPredefined = [
+    'Oil Change',
+    'Tire Service',
+    'Brake Repair',
+    'Engine Diagnostics',
+    'Battery Service',
+    'AC Repair',
   ];
 
   /// Map placeholder label
@@ -77,5 +87,16 @@ class AuthConstants {
     'Battery Service': 'battery_service',
     'AC Repair': 'ac_repair',
     'Other': 'other',
+  };
+
+  /// Reverse map: backend slugs → UI labels (for loading from API).
+  static const Map<String, String> serviceSlugToLabel = {
+    'oil_change': 'Oil Change',
+    'tire_service': 'Tire Service',
+    'brake_repair': 'Brake Repair',
+    'engine_diagnostics': 'Engine Diagnostics',
+    'battery_service': 'Battery Service',
+    'ac_repair': 'AC Repair',
+    'other': 'Other',
   };
 }

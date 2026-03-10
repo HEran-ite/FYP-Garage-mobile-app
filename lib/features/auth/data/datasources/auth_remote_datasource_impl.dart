@@ -27,6 +27,19 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   String get _base => kApiBaseUrl;
 
   @override
+  String? get authToken => _authToken;
+
+  @override
+  void setAuthToken(String? token) {
+    _authToken = token;
+  }
+
+  @override
+  void clearAuthToken() {
+    _authToken = null;
+  }
+
+  @override
   Future<UserModel> login({
     required String email,
     required String password,
@@ -94,14 +107,14 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       'longitude': lng,
       'place_id': registration.placeId ?? '',
     });
-    request.fields['services_offered'] = jsonEncode(
-      registration.services
-          .map((s) => AuthConstants.serviceLabelToSlug[s] ?? s.toLowerCase().replaceAll(' ', '_'))
-          .toList(),
-    );
-    if (registration.otherServices != null && registration.otherServices!.isNotEmpty) {
-      request.fields['other_services'] = registration.otherServices!;
+    final slugs = registration.services
+        .map((s) => AuthConstants.serviceLabelToSlug[s] ?? s.toLowerCase().replaceAll(' ', '_'))
+        .toList();
+    if (registration.otherServices != null && registration.otherServices!.trim().isNotEmpty) {
+      if (!slugs.contains('other')) slugs.add('other');
+      request.fields['other_services'] = registration.otherServices!.trim();
     }
+    request.fields['services_offered'] = jsonEncode(slugs);
 
     final String filename = licenseFileName ??
         (path != null ? path.split(RegExp(r'[/\\]')).last : 'document');
@@ -149,6 +162,80 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
   @override
   Future<UserModel?> getCurrentUser() async => null;
+
+  @override
+  Future<UserModel> updateProfile(UserModel user) async {
+    final uri = Uri.parse('$_base${ApiConstants.garageProfileMe}');
+    final token = authToken;
+    if (token == null || token.isEmpty) {
+      throw const ServerException('Not authenticated');
+    }
+    final slugs = (user.services ?? [])
+        .map((s) => AuthConstants.serviceLabelToSlug[s] ?? s.toLowerCase().replaceAll(' ', '_'))
+        .toList();
+    if (user.otherServices != null && user.otherServices!.trim().isNotEmpty) {
+      if (!slugs.contains('other')) slugs.add('other');
+    }
+    final body = <String, dynamic>{
+      'garage_name': user.name,
+      'phone': user.phone,
+      'email': user.email,
+      if (user.address != null && user.address!.isNotEmpty) 'address': user.address,
+      if (user.latitude != null) 'latitude': user.latitude,
+      if (user.longitude != null) 'longitude': user.longitude,
+      if (user.placeId != null && user.placeId!.isNotEmpty) 'place_id': user.placeId,
+      'services_offered': slugs,
+      if (user.otherServices != null && user.otherServices!.trim().isNotEmpty)
+        'other_services': user.otherServices!.trim(),
+    };
+    try {
+      final response = await _client
+          .patch(
+            uri,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode(body),
+          )
+          .timeout(ApiConstants.connectionTimeout);
+
+      final responseBody = _parseJsonResponse(response.body);
+      if (response.statusCode == 200) {
+        final garage = responseBody['garage'] as Map<String, dynamic>? ?? responseBody;
+        return UserModel.fromGarageJson(garage);
+      }
+      final err = responseBody['error'] as String? ?? responseBody['errors']?.toString() ?? 'Profile update failed';
+      throw ServerException(err);
+    } on ServerException {
+      rethrow;
+    } catch (e) {
+      if (e is ServerException) rethrow;
+      throw NetworkException(e.toString());
+    }
+  }
+
+  /// Parses response body as JSON. Throws [ServerException] if body is HTML or invalid JSON.
+  static Map<String, dynamic> _parseJsonResponse(String body) {
+    final trimmed = body.trim();
+    if (trimmed.isEmpty) return {};
+    if (trimmed.toLowerCase().startsWith('<!')) {
+      throw ServerException(
+        'Server returned an error page instead of JSON. '
+        'Check that the API base URL is correct and the backend is running (e.g. PATCH /garages/me).',
+      );
+    }
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic>) return decoded;
+      return {};
+    } on FormatException catch (e) {
+      throw ServerException(
+        'Invalid server response: ${e.message}. '
+        'The server may have returned an error page—check the API URL and backend.',
+      );
+    }
+  }
 
   /// Backend expects application/pdf, image/jpeg, image/jpg, image/png.
   static MediaType? _contentTypeFromFilename(String filename) {

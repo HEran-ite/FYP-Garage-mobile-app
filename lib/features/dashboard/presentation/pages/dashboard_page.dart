@@ -1,8 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/constants/border_radius.dart';
 import '../../../../core/constants/spacing.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../injection/injection_container.dart';
+import '../../../appointments/data/models/appointment_model.dart';
+import '../../../appointments/presentation/bloc/appointment_bloc.dart';
+import '../../../appointments/presentation/bloc/appointment_event.dart';
+import '../../../appointments/presentation/bloc/appointment_state.dart';
+import '../../../appointments/presentation/pages/appointment_list_page.dart';
+import '../../../auth/presentation/bloc/auth_bloc.dart';
+import '../../../auth/presentation/bloc/auth_state.dart';
+import '../../../profile/presentation/pages/profile_page.dart';
+import '../../../profile/presentation/pages/set_availability_page.dart';
+import '../../../services/presentation/pages/service_list_page.dart';
+import '../../../availability/domain/repositories/availability_repository.dart';
 
 /// Dashboard page - Overview of garage activity with stats, quick actions, and upcoming appointments
 class DashboardPage extends StatefulWidget {
@@ -17,10 +30,29 @@ class _DashboardPageState extends State<DashboardPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: _selectedIndex == 0 ? const _DashboardContent() : _PlaceholderTab(index: _selectedIndex),
-      bottomNavigationBar: Container(
+    return BlocProvider<AppointmentBloc>(
+      create: (_) => sl<AppointmentBloc>(),
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: _selectedIndex == 0
+            ? _DashboardContent(
+                onViewAppointments: () => setState(() => _selectedIndex = 1),
+                onUpdateAvailability: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => SetAvailabilityPage(
+                        repository: sl<AvailabilityRepository>(),
+                      ),
+                    ),
+                  );
+                },
+              )
+            : _selectedIndex == 1
+                ? const AppointmentListPage()
+                : _selectedIndex == 2
+                    ? const ServiceListPage()
+                    : const ProfilePage(),
+        bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: AppColors.surface,
           boxShadow: [
@@ -65,6 +97,7 @@ class _DashboardPageState extends State<DashboardPage> {
             ),
           ),
         ),
+      ),
       ),
     );
   }
@@ -113,34 +146,76 @@ class _NavItem extends StatelessWidget {
   }
 }
 
-class _DashboardContent extends StatelessWidget {
-  const _DashboardContent();
+class _DashboardContent extends StatefulWidget {
+  const _DashboardContent({
+    this.onViewAppointments,
+    this.onUpdateAvailability,
+  });
+
+  final VoidCallback? onViewAppointments;
+  final VoidCallback? onUpdateAvailability;
+
+  @override
+  State<_DashboardContent> createState() => _DashboardContentState();
+}
+
+class _DashboardContentState extends State<_DashboardContent> {
+  @override
+  void initState() {
+    super.initState();
+    context.read<AppointmentBloc>().add(const LoadAppointments());
+  }
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const SizedBox(height: AppSpacing.lg),
-            _DashboardHeader(),
-            const SizedBox(height: AppSpacing.xl),
-            _StatsGrid(),
-            const SizedBox(height: AppSpacing.xl),
-            const _QuickActionsSection(),
-            const SizedBox(height: AppSpacing.xl),
-            const _UpcomingAppointmentsSection(),
-            const SizedBox(height: AppSpacing.xxl),
-          ],
-        ),
-      ),
+    return BlocBuilder<AuthBloc, AuthState>(
+      buildWhen: (_, state) => state is AuthLoginSuccess,
+      builder: (context, authState) {
+        final garageName = authState is AuthLoginSuccess
+            ? (authState.user.name.isEmpty ? 'My Garage' : authState.user.name)
+            : 'My Garage';
+        return BlocBuilder<AppointmentBloc, AppointmentState>(
+          builder: (context, appointmentState) {
+            return SafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: AppSpacing.lg),
+                    _DashboardHeader(garageName: garageName),
+                    const SizedBox(height: AppSpacing.xl),
+                    _StatsGrid(state: appointmentState),
+                    const SizedBox(height: AppSpacing.xl),
+                    _QuickActionsSection(
+                      onViewAppointments: widget.onViewAppointments,
+                      onUpdateAvailability: widget.onUpdateAvailability,
+                      pendingCount: appointmentState is AppointmentLoaded
+                          ? appointmentState.countPending
+                          : 0,
+                    ),
+                    const SizedBox(height: AppSpacing.xl),
+                    _UpcomingAppointmentsSection(
+                      onViewAll: widget.onViewAppointments,
+                      state: appointmentState,
+                    ),
+                    const SizedBox(height: AppSpacing.xxl),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }
 
 class _DashboardHeader extends StatelessWidget {
+  const _DashboardHeader({required this.garageName});
+
+  final String garageName;
+
   @override
   Widget build(BuildContext context) {
     return Row(
@@ -159,7 +234,7 @@ class _DashboardHeader extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                'AutoCare Garage',
+                garageName,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: AppColors.textSecondary,
                     ),
@@ -204,8 +279,25 @@ class _DashboardHeader extends StatelessWidget {
 }
 
 class _StatsGrid extends StatelessWidget {
+  const _StatsGrid({required this.state});
+
+  final AppointmentState state;
+
   @override
   Widget build(BuildContext context) {
+    final loaded = state is AppointmentLoaded ? state as AppointmentLoaded : null;
+    final all = loaded?.countAll ?? 0;
+    final pending = loaded?.countPending ?? 0;
+    final inProgress = loaded?.countInProgress ?? 0;
+    final completed = loaded?.countCompleted ?? 0;
+
+    if (state is AppointmentLoading) {
+      return const SizedBox(
+        height: 160,
+        child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      );
+    }
+
     return GridView.count(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -217,25 +309,25 @@ class _StatsGrid extends StatelessWidget {
         _StatCard(
           icon: Icons.calendar_today_rounded,
           iconColor: AppColors.info,
-          value: '8',
+          value: '$all',
           label: "Today's Appointments",
         ),
         _StatCard(
           icon: Icons.info_outline_rounded,
           iconColor: AppColors.warning,
-          value: '3',
+          value: '$pending',
           label: 'Pending Requests',
         ),
         _StatCard(
           icon: Icons.schedule_rounded,
           iconColor: AppColors.secondary,
-          value: '2',
+          value: '$inProgress',
           label: 'In Progress',
         ),
         _StatCard(
           icon: Icons.check_circle_outline_rounded,
           iconColor: AppColors.success,
-          value: '12',
+          value: '$completed',
           label: 'Completed Today',
         ),
       ],
@@ -309,7 +401,15 @@ class _StatCard extends StatelessWidget {
 }
 
 class _QuickActionsSection extends StatelessWidget {
-  const _QuickActionsSection();
+  const _QuickActionsSection({
+    this.onViewAppointments,
+    this.onUpdateAvailability,
+    this.pendingCount = 0,
+  });
+
+  final VoidCallback? onViewAppointments;
+  final VoidCallback? onUpdateAvailability;
+  final int pendingCount;
 
   @override
   Widget build(BuildContext context) {
@@ -325,7 +425,7 @@ class _QuickActionsSection extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.md),
         FilledButton(
-          onPressed: () {},
+          onPressed: onViewAppointments,
           style: FilledButton.styleFrom(
             backgroundColor: AppColors.primary,
             foregroundColor: AppColors.textPrimary,
@@ -335,11 +435,11 @@ class _QuickActionsSection extends StatelessWidget {
             ),
             elevation: 0,
           ),
-          child: const Text('View Appointment Requests (3)'),
+          child: Text('View Appointment Requests ($pendingCount)'),
         ),
         const SizedBox(height: AppSpacing.sm),
         OutlinedButton(
-          onPressed: () {},
+          onPressed: onUpdateAvailability,
           style: OutlinedButton.styleFrom(
             foregroundColor: AppColors.textPrimary,
             side: const BorderSide(color: AppColors.inputBorder),
@@ -356,37 +456,21 @@ class _QuickActionsSection extends StatelessWidget {
 }
 
 class _UpcomingAppointmentsSection extends StatelessWidget {
-  const _UpcomingAppointmentsSection();
+  const _UpcomingAppointmentsSection({
+    this.onViewAll,
+    required this.state,
+  });
 
-  static const List<_AppointmentItem> _items = [
-    _AppointmentItem(
-      name: 'John Smith',
-      vehicle: 'Toyota Camry 2020',
-      status: 'Confirmed',
-      isConfirmed: true,
-      time: '10:00 AM',
-      service: 'Oil Change',
-    ),
-    _AppointmentItem(
-      name: 'Sarah Johnson',
-      vehicle: 'Honda Accord 2019',
-      status: 'Confirmed',
-      isConfirmed: true,
-      time: '11:30 AM',
-      service: 'Brake Repair',
-    ),
-    _AppointmentItem(
-      name: 'Mike Wilson',
-      vehicle: 'Ford F-150 2021',
-      status: 'Pending',
-      isConfirmed: false,
-      time: '2:00 PM',
-      service: 'Tire Service',
-    ),
-  ];
+  final VoidCallback? onViewAll;
+  final AppointmentState state;
 
   @override
   Widget build(BuildContext context) {
+    final list = state is AppointmentLoaded
+        ? (state as AppointmentLoaded).appointments.take(3).toList()
+        : <AppointmentModel>[];
+    final isLoading = state is AppointmentLoading;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -401,7 +485,7 @@ class _UpcomingAppointmentsSection extends StatelessWidget {
                   ),
             ),
             TextButton(
-              onPressed: () {},
+              onPressed: onViewAll,
               child: Text(
                 'View All',
                 style: TextStyle(
@@ -413,40 +497,52 @@ class _UpcomingAppointmentsSection extends StatelessWidget {
           ],
         ),
         const SizedBox(height: AppSpacing.sm),
-        ..._items.map((e) => Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.md),
-              child: _AppointmentCard(item: e),
-            )),
+        if (isLoading)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
+            child: Center(
+              child: SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+          )
+        else if (list.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+            child: Text(
+              'No upcoming appointments',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+            ),
+          )
+        else
+          ...list.map((a) => Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                child: _DashboardAppointmentCard(appointment: a),
+              )),
       ],
     );
   }
 }
 
-class _AppointmentItem {
-  const _AppointmentItem({
-    required this.name,
-    required this.vehicle,
-    required this.status,
-    required this.isConfirmed,
-    required this.time,
-    required this.service,
-  });
+class _DashboardAppointmentCard extends StatelessWidget {
+  const _DashboardAppointmentCard({required this.appointment});
 
-  final String name;
-  final String vehicle;
-  final String status;
-  final bool isConfirmed;
-  final String time;
-  final String service;
-}
-
-class _AppointmentCard extends StatelessWidget {
-  const _AppointmentCard({required this.item});
-
-  final _AppointmentItem item;
+  final AppointmentModel appointment;
 
   @override
   Widget build(BuildContext context) {
+    final isConfirmed = appointment.isApproved || appointment.isCompleted;
+    final timePart = appointment.scheduledAtDisplay.contains(',')
+        ? appointment.scheduledAtDisplay.split(',').last.trim()
+        : appointment.scheduledAtDisplay;
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
@@ -464,7 +560,7 @@ class _AppointmentCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            item.name,
+            'Driver',
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w600,
                   color: AppColors.textPrimary,
@@ -472,7 +568,7 @@ class _AppointmentCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            item.vehicle,
+            appointment.serviceDescription,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: AppColors.textSecondary,
                 ),
@@ -481,15 +577,15 @@ class _AppointmentCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
             decoration: BoxDecoration(
-              color: item.isConfirmed
+              color: isConfirmed
                   ? AppColors.success.withOpacity(0.12)
                   : AppColors.warning.withOpacity(0.12),
               borderRadius: BorderRadius.circular(AppBorderRadius.full),
             ),
             child: Text(
-              item.status,
+              appointment.statusLabel,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: item.isConfirmed ? AppColors.success : AppColors.warning,
+                    color: isConfirmed ? AppColors.success : AppColors.warning,
                     fontWeight: FontWeight.w500,
                   ),
             ),
@@ -500,43 +596,27 @@ class _AppointmentCard extends StatelessWidget {
               Icon(Icons.access_time_rounded, size: 16, color: AppColors.textSecondary),
               const SizedBox(width: AppSpacing.xs),
               Text(
-                item.time,
+                timePart,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppColors.textSecondary,
                     ),
               ),
               const SizedBox(width: AppSpacing.lg),
-              Icon(Icons.location_on_outlined, size: 16, color: AppColors.textSecondary),
+              Icon(Icons.build_circle_outlined, size: 16, color: AppColors.textSecondary),
               const SizedBox(width: AppSpacing.xs),
-              Text(
-                item.service,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
+              Expanded(
+                child: Text(
+                  appointment.serviceDescription,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _PlaceholderTab extends StatelessWidget {
-  const _PlaceholderTab({required this.index});
-
-  final int index;
-
-  static const List<String> _titles = ['', 'Appointments', 'Services', 'Profile'];
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Text(
-        '${_titles[index]} – Coming soon',
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: AppColors.textSecondary,
-            ),
       ),
     );
   }

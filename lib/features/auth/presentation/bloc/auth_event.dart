@@ -2,6 +2,8 @@ import 'dart:typed_data';
 
 import 'package:equatable/equatable.dart';
 
+import '../../domain/entities/user_entity.dart';
+
 /// Auth BLoC events
 abstract class AuthEvent extends Equatable {
   const AuthEvent();
@@ -103,4 +105,24 @@ class AuthRegistrationSuccessDismissed extends AuthEvent {
 /// Cancel registration flow (e.g. back from step 1)
 class AuthRegistrationCancelled extends AuthEvent {
   const AuthRegistrationCancelled();
+}
+
+/// Restore session from SharedPreferences on app start. If stored token + user exist, emit AuthLoginSuccess.
+class AuthRestoreSession extends AuthEvent {
+  const AuthRestoreSession();
+}
+
+/// Logout: clear stored session and in-memory token, then return to login
+class AuthLogoutRequested extends AuthEvent {
+  const AuthLogoutRequested();
+}
+
+/// Profile updated (name, phone, email, address, services). Updates in-memory user state.
+class AuthProfileUpdated extends AuthEvent {
+  const AuthProfileUpdated(this.user);
+
+  final UserEntity user;
+
+  @override
+  List<Object?> get props => [user];
 }
