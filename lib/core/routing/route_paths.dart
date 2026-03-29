@@ -22,5 +22,8 @@ class RoutePaths {
   // Profile
   static const String profile = '/profile';
   static const String editProfile = '/profile/edit';
+
+  // Notifications
+  static const String notifications = '/notifications';
 }
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/border_radius.dart';
 import '../../../../core/constants/spacing.dart';
+import '../../../../core/error/user_friendly_errors.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../availability/data/models/availability_slot_model.dart';
 import '../../../availability/domain/repositories/availability_repository.dart';
@@ -50,12 +51,25 @@ int _timeToMinutes(String time) {
   return (h.clamp(0, 23) * 60 + m.clamp(0, 59)).clamp(0, 1439);
 }
 
-/// Format minutes since midnight to "HH:mm".
+/// Format minutes since midnight to "HH:mm" (24h, for API).
 String _minutesToTime(int minutes) {
   final m = minutes.clamp(0, 1439);
   final h = m ~/ 60;
   final min = m % 60;
   return '${h.toString().padLeft(2, '0')}:${min.toString().padLeft(2, '0')}';
+}
+
+/// Format "HH:mm" (24h) to 12-hour display e.g. "2:30 PM", "12:00 AM".
+String _formatTime24To12(String time24) {
+  final parts = time24.split(':');
+  if (parts.length < 2) return time24;
+  final h = int.tryParse(parts[0]) ?? 0;
+  final m = int.tryParse(parts[1]) ?? 0;
+  final hour = h.clamp(0, 23);
+  final minute = m.clamp(0, 59);
+  final period = hour >= 12 ? 'PM' : 'AM';
+  final hour12 = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
+  return '$hour12:${minute.toString().padLeft(2, '0')} $period';
 }
 
 /// Merge overlapping or adjacent time slots (same day). Returns new list.
@@ -177,7 +191,7 @@ class _SetAvailabilityPageState extends State<SetAvailabilityPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.toString().replaceFirst('Exception: ', '')),
+            content: Text(toUserFriendlyMessage(e.toString())),
             backgroundColor: AppColors.error,
           ),
         );
@@ -478,9 +492,10 @@ class _TimeField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final displayValue = _formatTime24To12(value);
     return TextFormField(
       key: ValueKey('$label-$value'),
-      initialValue: value,
+      initialValue: displayValue,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: const Icon(Icons.access_time, size: 20, color: AppColors.textSecondary),
@@ -499,6 +514,12 @@ class _TimeField extends StatelessWidget {
         final time = await showTimePicker(
           context: context,
           initialTime: TimeOfDay(hour: hour, minute: minute),
+          builder: (context, child) {
+            return MediaQuery(
+              data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: false),
+              child: child!,
+            );
+          },
         );
         if (time != null) {
           final s = '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';

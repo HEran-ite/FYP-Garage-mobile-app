@@ -4,9 +4,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/constants/auth_constants.dart';
 import '../../../../core/constants/border_radius.dart';
 import '../../../../core/constants/spacing.dart';
+import '../../../../core/error/user_friendly_errors.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/domain/entities/user_entity.dart';
-import '../../../auth/data/models/user_model.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_event.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
@@ -31,33 +31,34 @@ class _ServicesEditPageState extends State<ServicesEditPage> {
   void initState() {
     super.initState();
     final u = widget.user;
-    // Backend returns slugs; chip grid uses labels.
-    _selectedServices = (u.services ?? [])
+    final allNames = (u.services ?? [])
         .map((s) => AuthConstants.serviceSlugToLabel[s] ?? s)
+        .where((s) => s.isNotEmpty)
+        .toList();
+    _selectedServices = allNames
         .where((label) => AuthConstants.serviceOptionsPredefined.contains(label))
         .toList();
-    _customServiceNames = u.otherServices != null && u.otherServices!.isNotEmpty
+    final customFromServices = allNames
+        .where((label) => !AuthConstants.serviceOptionsPredefined.contains(label))
+        .toList();
+    final customFromOther = u.otherServices != null && u.otherServices!.isNotEmpty
         ? u.otherServices!.split(RegExp(r',\s*')).map((s) => s.trim()).where((s) => s.isNotEmpty).toList()
-        : [];
+        : <String>[];
+    _customServiceNames = [...customFromServices];
+    for (final c in customFromOther) {
+      if (!_customServiceNames.contains(c)) _customServiceNames.add(c);
+    }
   }
 
   void _save() {
-    final updated = UserModel(
-      id: widget.user.id,
-      name: widget.user.name,
-      email: widget.user.email,
-      phone: widget.user.phone,
-      address: widget.user.address,
-      latitude: widget.user.latitude,
-      longitude: widget.user.longitude,
-      placeId: widget.user.placeId,
-      services: _selectedServices.isEmpty ? null : List.from(_selectedServices),
-      otherServices: _customServiceNames.isEmpty
-          ? null
-          : _customServiceNames.join(', '),
-    );
     setState(() => _isSaving = true);
-    context.read<AuthBloc>().add(AuthProfileUpdated(updated));
+    context.read<AuthBloc>().add(AuthServicesUpdated(
+          garageId: widget.user.id,
+          serviceLabels: _selectedServices,
+          otherServices: _customServiceNames.isEmpty
+              ? null
+              : _customServiceNames.join(', '),
+        ));
   }
 
   @override
@@ -67,7 +68,7 @@ class _ServicesEditPageState extends State<ServicesEditPage> {
         if (state is AuthProfileUpdateError) {
           setState(() => _isSaving = false);
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(state.message)),
+            SnackBar(content: Text(toUserFriendlyMessage(state.message))),
           );
         } else if (state is AuthLoginSuccess && _isSaving) {
           setState(() => _isSaving = false);

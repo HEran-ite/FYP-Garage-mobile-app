@@ -7,6 +7,7 @@ enum AppointmentListFilter {
   approved,
   inProgress,
   completed,
+  rejected,
 }
 
 /// Events for Appointment BLoC
@@ -17,9 +18,15 @@ abstract class AppointmentEvent extends Equatable {
   List<Object?> get props => [];
 }
 
-/// Load all appointments (then filter in state).
+/// Load appointments (optionally with backend [search] query).
 class LoadAppointments extends AppointmentEvent {
-  const LoadAppointments();
+  const LoadAppointments({this.search});
+
+  /// Search query sent to backend (GET ?search=...). Null or empty = no search.
+  final String? search;
+
+  @override
+  List<Object?> get props => [search];
 }
 
 /// Change the active filter (client-side, no reload).
@@ -70,4 +77,16 @@ class CompleteServiceAppointment extends AppointmentEvent {
 
   @override
   List<Object?> get props => [id];
+}
+
+/// Update appointment status via dropdown (backend: PATCH with status).
+class UpdateAppointmentStatus extends AppointmentEvent {
+  const UpdateAppointmentStatus(this.id, this.status);
+
+  final String id;
+  /// Backend value: PENDING, APPROVED, REJECTED, IN_SERVICE, COMPLETED
+  final String status;
+
+  @override
+  List<Object?> get props => [id, status];
 }

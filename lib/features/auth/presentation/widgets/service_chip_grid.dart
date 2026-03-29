@@ -81,20 +81,26 @@ class _ServiceChipGridState extends State<ServiceChipGrid> {
         Text(
           'Custom services',
           style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: AppColors.textSecondary,
-                fontWeight: FontWeight.w600,
-              ),
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w600,
+          ),
         ),
         const SizedBox(height: AppSpacing.sm),
-        Wrap(
-          spacing: AppSpacing.sm,
-          runSpacing: AppSpacing.sm,
-          children: [
-            ...widget.customServiceNames.map((name) => _CustomServiceChip(
+        GridView.count(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: 2,
+          mainAxisSpacing: AppSpacing.sm,
+          crossAxisSpacing: AppSpacing.sm,
+          childAspectRatio: 3.2,
+          children: widget.customServiceNames
+              .map(
+                (name) => _CustomServiceChip(
                   label: name,
                   onRemove: () => _removeCustom(name),
-                )),
-          ],
+                ),
+              )
+              .toList(),
         ),
         const SizedBox(height: AppSpacing.sm),
         Row(
@@ -245,44 +251,67 @@ class _ServiceChip extends StatelessWidget {
 }
 
 class _CustomServiceChip extends StatelessWidget {
-  const _CustomServiceChip({
-    required this.label,
-    required this.onRemove,
-  });
+  const _CustomServiceChip({required this.label, required this.onRemove});
 
   final String label;
   final VoidCallback onRemove;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.primary.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(AppBorderRadius.full),
-        border: Border.all(color: AppColors.primary.withOpacity(0.5)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.build_circle_outlined, size: 18, color: AppColors.textPrimary),
-          const SizedBox(width: AppSpacing.xs),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w500,
+    return GestureDetector(
+      onTap: onRemove,
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.primary,
+          borderRadius: BorderRadius.circular(AppBorderRadius.md),
+          border: Border.all(color: AppColors.primary, width: 2),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.2),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.build_circle_outlined,
+                  size: 20,
                   color: AppColors.textPrimary,
                 ),
-          ),
-          const SizedBox(width: AppSpacing.xs),
-          GestureDetector(
-            onTap: onRemove,
-            child: Icon(Icons.close, size: 18, color: AppColors.textSecondary),
-          ),
-        ],
+                const SizedBox(width: AppSpacing.sm),
+                Flexible(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textPrimary,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            Positioned(
+              top: AppSpacing.xs,
+              right: AppSpacing.xs,
+              child: GestureDetector(
+                onTap: onRemove,
+                child: const Icon(
+                  Icons.check,
+                  size: 18,
+                  color: AppColors.primaryButtonText,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

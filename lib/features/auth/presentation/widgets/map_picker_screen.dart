@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geolocator/geolocator.dart';
 
 import '../../../../core/constants/auth_constants.dart';
 import '../../../../core/constants/spacing.dart';
@@ -28,6 +29,7 @@ class MapPickerScreen extends StatefulWidget {
 class _MapPickerScreenState extends State<MapPickerScreen> {
   late LatLng _position;
   final PlacesRemoteDataSource _places = PlacesRemoteDataSource();
+  GoogleMapController? _mapController;
 
   @override
   void initState() {
@@ -35,6 +37,40 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
     _position = widget.initialLat != null && widget.initialLng != null
         ? LatLng(widget.initialLat!, widget.initialLng!)
         : _defaultCenter;
+    if (widget.initialLat == null || widget.initialLng == null) {
+      _initFromDeviceLocation();
+    }
+  }
+
+  Future<void> _initFromDeviceLocation() async {
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return;
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return;
+      }
+
+      final pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 6),
+      );
+      if (!mounted) return;
+      final next = LatLng(pos.latitude, pos.longitude);
+      setState(() => _position = next);
+      await _mapController?.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(target: next, zoom: 15),
+        ),
+      );
+    } catch (_) {
+      // Keep the existing default center if we can't get device location.
+    }
   }
 
   Future<void> _onDone() async {
@@ -180,7 +216,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
               target: _position,
               zoom: 15,
             ),
-            onMapCreated: (_) {},
+            onMapCreated: (c) => _mapController = c,
             markers: {
               Marker(
                 markerId: const MarkerId('garage'),
@@ -194,8 +230,8 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
             onTap: (LatLng pos) {
               setState(() => _position = pos);
             },
-            myLocationEnabled: false,
-            myLocationButtonEnabled: false,
+            myLocationEnabled: true,
+            myLocationButtonEnabled: true,
             zoomControlsEnabled: true,
           ),
           Positioned(

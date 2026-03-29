@@ -117,7 +117,7 @@ class AuthLogoutRequested extends AuthEvent {
   const AuthLogoutRequested();
 }
 
-/// Profile updated (name, phone, email, address, services). Updates in-memory user state.
+/// Profile updated (name, phone, email, address). Uses PATCH /garages/me.
 class AuthProfileUpdated extends AuthEvent {
   const AuthProfileUpdated(this.user);
 
@@ -125,4 +125,20 @@ class AuthProfileUpdated extends AuthEvent {
 
   @override
   List<Object?> get props => [user];
+}
+
+/// Services updated only. Uses PATCH /garages/me/services/:garageId.
+class AuthServicesUpdated extends AuthEvent {
+  const AuthServicesUpdated({
+    required this.garageId,
+    required this.serviceLabels,
+    this.otherServices,
+  });
+
+  final String garageId;
+  final List<String> serviceLabels;
+  final String? otherServices;
+
+  @override
+  List<Object?> get props => [garageId, serviceLabels, otherServices];
 }

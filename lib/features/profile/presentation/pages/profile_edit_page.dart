@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/constants/auth_constants.dart';
 import '../../../../core/constants/border_radius.dart';
 import '../../../../core/constants/spacing.dart';
+import '../../../../core/error/user_friendly_errors.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/domain/entities/user_entity.dart';
 import '../../../auth/data/models/user_model.dart';
@@ -92,6 +93,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
       placeId: _pickedPlaceId,
       services: widget.user.services,
       otherServices: widget.user.otherServices,
+      garageStatus: widget.user.garageStatus,
     );
 
     setState(() => _isSaving = true);
@@ -105,7 +107,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         if (state is AuthProfileUpdateError) {
           setState(() => _isSaving = false);
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(state.message)),
+            SnackBar(content: Text(toUserFriendlyMessage(state.message))),
           );
         } else if (state is AuthLoginSuccess && _isSaving) {
           setState(() => _isSaving = false);

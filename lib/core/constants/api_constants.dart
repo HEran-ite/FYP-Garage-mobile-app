@@ -11,19 +11,33 @@ class ApiConstants {
   static const String garageAuthLogin = '/garages/auth/login';
   static const String garageAuthSignup = '/garages/auth/signup';
 
-  /// Current garage profile (require JWT)
-  static const String garageProfileMe = '/garages/me';
+  /// Garage profile (backend garage-missing-endpoints: GET/PUT /garage/profile)
+  static const String garageProfile = '/garage/profile';
 
-  /// Garage appointments (require JWT)
+  /// Garage services (backend: GET/PUT/POST /garages/me/services, PATCH/DELETE /garages/me/services/:id)
+  static const String garageMeServicesList = '/garages/me/services';
+  static String garageMeServiceById(String serviceId) => '/garages/me/services/$serviceId';
+
+  /// Garage appointments (JWT). Matches driver-garage-backend garage-missing-endpoints:
+  /// GET/PATCH `/garages/appointments`, PATCH `.../:id/approve`, `.../:id/reject`, `.../:id/status`.
   static const String garageAppointments = '/garages/appointments';
   static String garageAppointmentById(String id) => '/garages/appointments/$id';
-  static String garageAppointmentApprove(String id) => '/garages/appointments/$id/approve';
-  static String garageAppointmentReject(String id) => '/garages/appointments/$id/reject';
-  static String garageAppointmentStatus(String id) => '/garages/appointments/$id/status';
+  static String garageAppointmentApprove(String id) =>
+      '/garages/appointments/$id/approve';
+  static String garageAppointmentReject(String id) =>
+      '/garages/appointments/$id/reject';
+  static String garageAppointmentStatus(String id) =>
+      '/garages/appointments/$id/status';
 
   /// Garage availability (require JWT). Base path: /garages/availability
-  static const String garageAvailabilityMeSlots = '/garages/availability/me/slots';
+  static const String garageAvailabilityMeSlots =
+      '/garages/availability/me/slots';
   static String garageAvailabilityMeSlotById(String id) =>
       '/garages/availability/me/slots/$id';
-}
 
+  /// Garage notifications (backend: GET /garages/notifications)
+  static const String garageNotifications = '/garages/notifications';
+
+  /// Garage settings (backend: GET/PUT /garages/settings)
+  static const String garageSettings = '/garages/settings';
+}

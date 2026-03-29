@@ -8,8 +8,8 @@ class AppointmentsRepositoryImpl implements AppointmentsRepository {
   final AppointmentsRemoteDataSource _remote;
 
   @override
-  Future<List<AppointmentModel>> listAppointments({String? status}) =>
-      _remote.listAppointments(status: status);
+  Future<List<AppointmentModel>> listAppointments({String? status, String? search}) =>
+      _remote.listAppointments(status: status, search: search);
 
   @override
   Future<AppointmentModel> getAppointment(String id) =>
@@ -24,6 +24,10 @@ class AppointmentsRepositoryImpl implements AppointmentsRepository {
       _remote.rejectAppointment(id);
 
   @override
-  Future<AppointmentModel> updateStatus(String id, String status) =>
-      _remote.updateStatus(id, status);
+  Future<AppointmentModel> updateStatus(String id, String status) {
+    final upper = status.toUpperCase();
+    if (upper == 'APPROVED') return _remote.approveAppointment(id);
+    if (upper == 'REJECTED') return _remote.rejectAppointment(id);
+    return _remote.updateStatus(id, status);
+  }
 }

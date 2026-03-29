@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
 
 /// Persists auth token and user to SharedPreferences so session survives app restart.
+/// Token is stored until logout or app uninstall (no client-side expiry).
 abstract class AuthSessionStorage {
   Future<void> save(String token, UserModel user);
   Future<void> clear();
@@ -32,8 +33,12 @@ class AuthSessionStorageImpl implements AuthSessionStorage {
 
   @override
   Future<void> save(String token, UserModel user) async {
+    SharedPreferences? prefs = await _getPrefs(_prefs);
+    if (prefs == null) {
+      await Future.delayed(const Duration(milliseconds: 100));
+      prefs = await _getPrefs(_prefs);
+    }
     try {
-      final prefs = await _getPrefs(_prefs);
       if (prefs == null) return;
       await prefs.setString(_keyToken, token);
       await prefs.setString(_keyUser, jsonEncode(user.toJson()));
@@ -57,7 +62,11 @@ class AuthSessionStorageImpl implements AuthSessionStorage {
   @override
   Future<({String token, UserModel user})?> load() async {
     try {
-      final prefs = await _getPrefs(_prefs);
+      SharedPreferences? prefs = await _getPrefs(_prefs);
+      if (prefs == null) {
+        await Future.delayed(const Duration(milliseconds: 100));
+        prefs = await _getPrefs(_prefs);
+      }
       if (prefs == null) return null;
       final token = prefs.getString(_keyToken);
       final userJson = prefs.getString(_keyUser);

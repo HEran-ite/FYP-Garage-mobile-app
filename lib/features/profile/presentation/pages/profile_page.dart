@@ -3,16 +3,16 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/constants/border_radius.dart';
 import '../../../../core/constants/spacing.dart';
+import '../../../../core/error/user_friendly_errors.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/routing/route_paths.dart';
-import '../../../../core/constants/auth_constants.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_event.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
 import '../../../../injection/injection_container.dart';
 import '../../../availability/domain/repositories/availability_repository.dart';
+import '../../../settings/data/datasources/garage_settings_remote_datasource.dart';
 import 'profile_edit_page.dart';
-import 'services_edit_page.dart';
 import 'set_availability_page.dart';
 
 /// Profile & Settings: garage info, availability, services, settings toggles, logout.
@@ -24,18 +24,85 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  bool _onsiteService = true;
+  bool _onsiteService = false;
   bool _notifications = true;
+  int? _availabilityDaysCount;
+  bool _loadingSettings = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAvailabilityDaysCount();
+    _loadGarageSettings();
+  }
+
+  Future<void> _loadGarageSettings() async {
+    setState(() => _loadingSettings = true);
+    try {
+      final data = await sl<GarageSettingsRemoteDataSource>().getSettings();
+      final enabled = data['onsiteServiceEnabled'];
+      if (!mounted) return;
+      setState(() {
+        _onsiteService = enabled is bool ? enabled : false;
+        _loadingSettings = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingSettings = false);
+    }
+  }
+
+  Future<void> _setOnsiteServiceEnabled(bool enabled) async {
+    final prev = _onsiteService;
+    setState(() => _onsiteService = enabled);
+    try {
+      await sl<GarageSettingsRemoteDataSource>().updateSettings({
+        'onsiteServiceEnabled': enabled,
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _onsiteService = prev);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(toUserFriendlyMessage(e.toString()))),
+      );
+    }
+  }
+
+  Future<void> _loadAvailabilityDaysCount() async {
+    try {
+      final slots = await sl<AvailabilityRepository>().listSlots();
+      final days = slots.map((s) => s.dayOfWeek).toSet().length;
+      if (mounted) setState(() => _availabilityDaysCount = days);
+    } catch (_) {
+      if (mounted) setState(() => _availabilityDaysCount = 0);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<AuthBloc, AuthState>(
-      buildWhen: (prev, curr) => curr is AuthLoginSuccess || curr is AuthInitial,
+      buildWhen: (prev, curr) =>
+          curr is AuthLoginSuccess ||
+          curr is AuthProfileUpdating ||
+          curr is AuthProfileUpdateError ||
+          curr is AuthInitial ||
+          curr is AuthRestoringSession,
       builder: (context, state) {
-        if (state is! AuthLoginSuccess) {
+        if (state is AuthRestoringSession) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        final user = state is AuthLoginSuccess
+            ? state.user
+            : state is AuthProfileUpdating
+                ? state.user
+                : state is AuthProfileUpdateError
+                    ? state.user
+                    : null;
+        if (user == null) {
           return const Center(child: Text('Please sign in'));
         }
-        final user = state.user;
         return SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
@@ -66,18 +133,18 @@ class _ProfilePageState extends State<ProfilePage> {
                   onEdit: () => _openProfileEdit(context, user),
                 ),
                 const SizedBox(height: AppSpacing.md),
-                _AvailabilityCard(onTap: () => _openSetAvailability(context)),
-                const SizedBox(height: AppSpacing.md),
-                _ServicesOfferedCard(
-                  services: user.services,
-                  otherServices: user.otherServices,
-                  onTap: () => _openServicesEdit(context, user),
+                _AvailabilityCard(
+                  openDaysCount: _availabilityDaysCount,
+                  onTap: () => _openSetAvailability(context),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 _SettingsCard(
                   onsiteService: _onsiteService,
                   notifications: _notifications,
-                  onOnsiteChanged: (v) => setState(() => _onsiteService = v),
+                  onOnsiteChanged: (v) {
+                    if (_loadingSettings) return;
+                    _setOnsiteServiceEnabled(v);
+                  },
                   onNotificationsChanged: (v) => setState(() => _notifications = v),
                 ),
                 const SizedBox(height: AppSpacing.lg),
@@ -98,21 +165,13 @@ class _ProfilePageState extends State<ProfilePage> {
       MaterialPageRoute<void>(
         builder: (_) => SetAvailabilityPage(repository: sl<AvailabilityRepository>()),
       ),
-    );
+    ).then((_) => _loadAvailabilityDaysCount());
   }
 
   void _openProfileEdit(BuildContext context, dynamic user) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => ProfileEditPage(user: user),
-      ),
-    );
-  }
-
-  void _openServicesEdit(BuildContext context, dynamic user) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => ServicesEditPage(user: user),
       ),
     );
   }
@@ -248,9 +307,22 @@ class _InfoRow extends StatelessWidget {
 }
 
 class _AvailabilityCard extends StatelessWidget {
-  const _AvailabilityCard({this.onTap});
+  const _AvailabilityCard({
+    this.openDaysCount,
+    this.onTap,
+  });
+
+  /// Number of days with availability set (from API). Null = loading.
+  final int? openDaysCount;
 
   final VoidCallback? onTap;
+
+  String get _subtitle {
+    if (openDaysCount == null) return 'Loading...';
+    if (openDaysCount! == 0) return 'No availability set';
+    if (openDaysCount! == 1) return 'Open 1 day a week';
+    return 'Open $openDaysCount days a week';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -285,7 +357,7 @@ class _AvailabilityCard extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      'Open 6 days a week',
+                      _subtitle,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: AppColors.textSecondary,
                           ),
@@ -297,101 +369,6 @@ class _AvailabilityCard extends StatelessWidget {
                 onPressed: onTap,
                 icon: Icon(Icons.edit_outlined, color: AppColors.primary, size: 24),
               ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ServicesOfferedCard extends StatelessWidget {
-  const _ServicesOfferedCard({
-    this.services,
-    this.otherServices,
-    this.onTap,
-  });
-
-  final List<String>? services;
-  final String? otherServices;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final fromPredefined = (services ?? [])
-        .where((s) => s != AuthConstants.otherServiceId)
-        .toList();
-    final fromCustom = otherServices != null && otherServices!.isNotEmpty
-        ? otherServices!.split(RegExp(r',\s*')).map((s) => s.trim()).where((s) => s.isNotEmpty).toList()
-        : <String>[];
-    final labels = [...fromPredefined, ...fromCustom];
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppBorderRadius.lg),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(AppBorderRadius.sm),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-              child: Row(
-                children: [
-                  Text(
-                    'Services Offered',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
-                        ),
-                  ),
-                  const Spacer(),
-                  Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.textSecondary),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
-            children: [
-              if (labels.isEmpty)
-                Text(
-                  'Tap to add services',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
-                        fontStyle: FontStyle.italic,
-                      ),
-                )
-              else
-                for (final label in labels)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.sm,
-                      vertical: AppSpacing.xs,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.background,
-                      borderRadius: BorderRadius.circular(AppBorderRadius.full),
-                    ),
-                    child: Text(
-                      label,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
-                    ),
-                  ),
             ],
           ),
         ],
