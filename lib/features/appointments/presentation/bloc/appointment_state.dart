@@ -19,25 +19,43 @@ class AppointmentLoaded extends AppointmentState {
   const AppointmentLoaded({
     required this.appointments,
     this.filter = AppointmentListFilter.all,
+    this.searchQuery,
   });
 
   final List<AppointmentModel> appointments;
   final AppointmentListFilter filter;
+  /// Last search sent to backend (so reloads after actions keep the same search).
+  final String? searchQuery;
 
-  /// Filtered list for current tab.
+  /// Filtered list for current tab, sorted recent to old (by scheduledAt descending).
   List<AppointmentModel> get filteredList {
+    List<AppointmentModel> list;
     switch (filter) {
       case AppointmentListFilter.pending:
-        return appointments.where((a) => a.isPending).toList();
+        list = appointments.where((a) => a.isPending).toList();
+        break;
       case AppointmentListFilter.approved:
-        return appointments.where((a) => a.isApproved).toList();
+        list = appointments.where((a) => a.isApproved).toList();
+        break;
       case AppointmentListFilter.inProgress:
-        return appointments.where((a) => a.isInProgress).toList();
+        list = appointments.where((a) => a.isInProgress).toList();
+        break;
       case AppointmentListFilter.completed:
-        return appointments.where((a) => a.isCompleted).toList();
+        list = appointments.where((a) => a.isCompleted).toList();
+        break;
+      case AppointmentListFilter.rejected:
+        list = appointments.where((a) => a.isRejected).toList();
+        break;
       case AppointmentListFilter.all:
-        return appointments;
+        list = List<AppointmentModel>.from(appointments);
+        break;
     }
+    list.sort((a, b) {
+      final da = DateTime.tryParse(a.scheduledAt) ?? DateTime(0);
+      final db = DateTime.tryParse(b.scheduledAt) ?? DateTime(0);
+      return db.compareTo(da); // recent first (newest at top)
+    });
+    return list;
   }
 
   int get countAll => appointments.length;
@@ -45,18 +63,66 @@ class AppointmentLoaded extends AppointmentState {
   int get countApproved => appointments.where((a) => a.isApproved).length;
   int get countInProgress => appointments.where((a) => a.isInProgress).length;
   int get countCompleted => appointments.where((a) => a.isCompleted).length;
+  int get countRejected => appointments.where((a) => a.isRejected).length;
 
   @override
-  List<Object?> get props => [appointments, filter];
+  List<Object?> get props => [appointments, filter, searchQuery];
 }
 
+/// Shown while one appointment is being updated; keeps list visible.
 class AppointmentActionLoading extends AppointmentState {
-  const AppointmentActionLoading(this.appointmentId);
+  const AppointmentActionLoading(
+    this.appointmentId, {
+    required this.appointments,
+    this.filter = AppointmentListFilter.all,
+    this.searchQuery,
+  });
 
   final String appointmentId;
+  final List<AppointmentModel> appointments;
+  final AppointmentListFilter filter;
+  final String? searchQuery;
+
+  /// Same as [AppointmentLoaded.filteredList] so list stays visible during update.
+  List<AppointmentModel> get filteredList {
+    List<AppointmentModel> list;
+    switch (filter) {
+      case AppointmentListFilter.pending:
+        list = appointments.where((a) => a.isPending).toList();
+        break;
+      case AppointmentListFilter.approved:
+        list = appointments.where((a) => a.isApproved).toList();
+        break;
+      case AppointmentListFilter.inProgress:
+        list = appointments.where((a) => a.isInProgress).toList();
+        break;
+      case AppointmentListFilter.completed:
+        list = appointments.where((a) => a.isCompleted).toList();
+        break;
+      case AppointmentListFilter.rejected:
+        list = appointments.where((a) => a.isRejected).toList();
+        break;
+      case AppointmentListFilter.all:
+        list = List<AppointmentModel>.from(appointments);
+        break;
+    }
+    list.sort((a, b) {
+      final da = DateTime.tryParse(a.scheduledAt) ?? DateTime(0);
+      final db = DateTime.tryParse(b.scheduledAt) ?? DateTime(0);
+      return db.compareTo(da);
+    });
+    return list;
+  }
+
+  int get countAll => appointments.length;
+  int get countPending => appointments.where((a) => a.isPending).length;
+  int get countApproved => appointments.where((a) => a.isApproved).length;
+  int get countInProgress => appointments.where((a) => a.isInProgress).length;
+  int get countCompleted => appointments.where((a) => a.isCompleted).length;
+  int get countRejected => appointments.where((a) => a.isRejected).length;
 
   @override
-  List<Object?> get props => [appointmentId];
+  List<Object?> get props => [appointmentId, appointments, filter, searchQuery];
 }
 
 class AppointmentError extends AppointmentState {

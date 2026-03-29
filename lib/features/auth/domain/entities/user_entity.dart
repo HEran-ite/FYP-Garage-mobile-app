@@ -13,6 +13,7 @@ class UserEntity extends Equatable {
     this.placeId,
     this.services,
     this.otherServices,
+    this.garageStatus,
   });
 
   final String id;
@@ -26,6 +27,21 @@ class UserEntity extends Equatable {
   final List<String>? services;
   final String? otherServices;
 
+  /// Garage account status from backend (AccountStatus): PENDING, ACTIVE, REJECTED, BLOCKED, WARNED.
+  final String? garageStatus;
+
   @override
-  List<Object?> get props => [id, name, email, phone, address, latitude, longitude, placeId, services, otherServices];
+  List<Object?> get props => [
+    id,
+    name,
+    email,
+    phone,
+    address,
+    latitude,
+    longitude,
+    placeId,
+    services,
+    otherServices,
+    garageStatus,
+  ];
 }

@@ -3,6 +3,11 @@ abstract class AppException implements Exception {
   final String message;
 
   const AppException(this.message);
+
+  /// So `catch (e) => e.toString()` shows the real message (not
+  /// `Instance of 'ServerException'`).
+  @override
+  String toString() => message;
 }
 
 /// Server exception

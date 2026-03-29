@@ -17,6 +17,7 @@ class UserModel extends UserEntity {
     super.placeId,
     super.services,
     super.otherServices,
+    super.garageStatus,
   });
 
   /// From login response garage object. Parses location from top-level or garage_location.
@@ -55,8 +56,18 @@ class UserModel extends UserEntity {
     final soff = json['services_offered'];
     if (soff is List) {
       servicesList = soff.map((e) => e.toString()).toList();
+    } else if (json['services'] is List) {
+      // Backend GarageProfileResponse: services is array of { id, name, ... }
+      final arr = json['services'] as List;
+      final list = <String>[];
+      for (final s in arr) {
+        final n = s is Map ? (s['name'] as String?)?.trim() : s.toString().trim();
+        if (n != null && n.isNotEmpty) list.add(n);
+      }
+      servicesList = list.isEmpty ? null : list;
     }
     otherStr = json['other_services'] as String?;
+    final status = json['status'] as String?;
 
     return UserModel(
       id: _stringId(json['id']),
@@ -69,6 +80,7 @@ class UserModel extends UserEntity {
       placeId: placeId,
       services: servicesList,
       otherServices: otherStr,
+      garageStatus: status != null && status.isNotEmpty ? status.toUpperCase() : null,
     );
   }
 
@@ -80,13 +92,15 @@ class UserModel extends UserEntity {
     return null;
   }
 
-  /// From signup 201 response (id, garage_name, email, phone)
+  /// From signup 201 response (id, garage_name, email, phone, status)
   factory UserModel.fromSignupJson(Map<String, dynamic> json) {
+    final status = json['status'] as String?;
     return UserModel(
       id: _stringId(json['id']),
       name: (json['garage_name'] as String?) ?? (json['name'] as String?) ?? '',
       email: (json['email'] as String?) ?? '',
       phone: (json['phone'] as String?) ?? '',
+      garageStatus: status != null && status.isNotEmpty ? status.toUpperCase() : null,
     );
   }
 
@@ -107,6 +121,7 @@ class UserModel extends UserEntity {
     String? placeId,
     List<String>? services,
     String? otherServices,
+    String? garageStatus,
   }) {
     return UserModel(
       id: id,
@@ -119,23 +134,26 @@ class UserModel extends UserEntity {
       placeId: placeId ?? this.placeId,
       services: services ?? this.services,
       otherServices: otherServices ?? this.otherServices,
+      garageStatus: garageStatus ?? this.garageStatus,
     );
   }
 
   /// Full JSON for session persistence (SharedPreferences).
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'email': email,
-        'phone': phone,
-        if (address != null) 'address': address,
-        if (latitude != null) 'latitude': latitude,
-        if (longitude != null) 'longitude': longitude,
-        if (placeId != null) 'place_id': placeId,
-        if (services != null) 'services_offered': services,
-        if (otherServices != null) 'other_services': otherServices,
-      };
+    'id': id,
+    'name': name,
+    'email': email,
+    'phone': phone,
+    if (address != null) 'address': address,
+    if (latitude != null) 'latitude': latitude,
+    if (longitude != null) 'longitude': longitude,
+    if (placeId != null) 'place_id': placeId,
+    if (services != null) 'services_offered': services,
+    if (otherServices != null) 'other_services': otherServices,
+    if (garageStatus != null) 'status': garageStatus,
+  };
 
   /// From stored session JSON (same shape as toJson / garage response).
-  factory UserModel.fromJson(Map<String, dynamic> json) => UserModel.fromGarageJson(json);
+  factory UserModel.fromJson(Map<String, dynamic> json) =>
+      UserModel.fromGarageJson(json);
 }

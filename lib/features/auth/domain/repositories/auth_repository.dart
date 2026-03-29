@@ -27,6 +27,13 @@ abstract class AuthRepository {
   /// Update current garage profile (backend: PATCH /garages/me).
   Future<Either<Failure, UserEntity>> updateProfile(UserEntity user);
 
+  /// Update garage services only (backend: PATCH /garages/me/services/:garageId).
+  Future<Either<Failure, UserEntity>> updateGarageServices(
+    String garageId,
+    List<String> serviceSlugs,
+    String? otherServices,
+  );
+
   /// Load stored session (token + user). Returns user if present and sets token. Used on app start.
   Future<UserEntity?> loadSession();
 

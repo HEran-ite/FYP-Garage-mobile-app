@@ -5,6 +5,8 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 // Read GOOGLE_MAPS_API_KEY from .env (project root); never commit .env (see .gitignore).
 val googleMapsApiKey: String by lazy {
     val envFile = file("../../.env")
@@ -27,8 +29,11 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
 
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
+    // Kotlin 2.0+ requires compilerOptions DSL (kotlinOptions.jvmTarget is now an error).
+    kotlin {
+        compilerOptions {
+            jvmTarget = JvmTarget.JVM_11
+        }
     }
 
     defaultConfig {

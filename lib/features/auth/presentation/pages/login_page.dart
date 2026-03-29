@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/constants/auth_constants.dart';
 import '../../../../core/constants/border_radius.dart';
 import '../../../../core/constants/spacing.dart';
+import '../../../../core/error/user_friendly_errors.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../bloc/auth_bloc.dart';
@@ -25,13 +26,11 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void initState() {
     super.initState();
-    // Defer restore so SharedPreferences platform channel is ready (avoids channel-error on Android).
+    // Restore session on next frame so SharedPreferences is ready (avoids channel-error on Android).
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Future.delayed(const Duration(milliseconds: 150), () {
-        if (mounted) {
-          context.read<AuthBloc>().add(const AuthRestoreSession());
-        }
-      });
+      if (mounted) {
+        context.read<AuthBloc>().add(const AuthRestoreSession());
+      }
     });
   }
 
@@ -40,26 +39,39 @@ class _LoginPageState extends State<LoginPage> {
     return Scaffold(
       backgroundColor: AppColors.surface,
       body: SafeArea(
-        child: Center(
-          child: BlocConsumer<AuthBloc, AuthState>(
-            listener: (context, state) {
-              if (state is AuthLoginSuccess) {
-                Navigator.of(context).pushReplacementNamed(RoutePaths.dashboard);
-              }
-              if (state is AuthLoginError) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text(state.message)));
-              }
-            },
-            builder: (context, state) {
-              final isLoading = state is AuthLoginLoading;
-              return SingleChildScrollView(
+        child: BlocConsumer<AuthBloc, AuthState>(
+          listener: (context, state) {
+            if (state is AuthLoginSuccess) {
+              Navigator.of(context).pushReplacementNamed(RoutePaths.dashboard);
+            }
+            if (state is AuthLoginError) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(toUserFriendlyMessage(state.message))),
+              );
+            }
+          },
+          builder: (context, state) {
+            // Don't show "Sign in" until we've checked saved session.
+            if (state is AuthRestoringSession) {
+              return const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: AppSpacing.lg),
+                    Text('Loading...'),
+                  ],
+                ),
+              );
+            }
+            final isLoading = state is AuthLoginLoading;
+            return Center(
+              child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 child: _LoginForm(isLoading: isLoading),
-              );
-            },
-          ),
+              ),
+            );
+          },
         ),
       ),
     );

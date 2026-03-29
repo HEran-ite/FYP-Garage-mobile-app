@@ -7,6 +7,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/constants/auth_constants.dart';
 import '../../../../core/constants/border_radius.dart';
 import '../../../../core/constants/spacing.dart';
+import '../../../../core/error/user_friendly_errors.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
@@ -26,13 +27,19 @@ class CreateAccountPage extends StatelessWidget {
     return BlocConsumer<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is AuthRegistrationError) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(state.message)));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(toUserFriendlyMessage(state.message))),
+          );
         }
       },
       builder: (context, state) {
-        return Scaffold(
+        return PopScope(
+          canPop: false,
+          onPopInvokedWithResult: (didPop, _) {
+            if (didPop) return;
+            _onBack(context, state);
+          },
+          child: Scaffold(
           backgroundColor: AppColors.surface,
           appBar: AppBar(
             leading: IconButton(
@@ -92,6 +99,7 @@ class CreateAccountPage extends StatelessWidget {
                     ],
                   ),
                 ),
+          ),
         );
       },
     );
@@ -123,6 +131,17 @@ class CreateAccountPage extends StatelessWidget {
     }
     if (state is AuthRegistrationStep3) {
       context.read<AuthBloc>().add(const AuthRegistrationStep3Back());
+      return;
+    }
+    if (state is AuthRegistrationError) {
+      // If we kept step data, user is still on step 3 UI; allow back to step 2.
+      if (state.step1Data != null && state.step2Data != null) {
+        context.read<AuthBloc>().add(const AuthRegistrationStep3Back());
+        return;
+      }
+      // Otherwise just exit registration.
+      context.read<AuthBloc>().add(const AuthRegistrationCancelled());
+      Navigator.of(context).pop();
       return;
     }
     if (state is AuthRegistrationSuccess) {
@@ -474,18 +493,30 @@ class _Step3ContentState extends State<_Step3Content> {
         DocumentUploadButton(
           filePath: _documentFileName ?? _documentPath,
           onTap: () async {
-            final result = await FilePicker.platform.pickFiles(
-              type: FileType.custom,
-              allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg'],
-              withData: true,
-            );
-            if (result != null && result.files.isNotEmpty) {
-              final file = result.files.first;
-              setState(() {
-                _documentBytes = file.bytes;
-                _documentFileName = file.name;
-                _documentPath = file.path;
-              });
+            try {
+              final result = await FilePicker.platform.pickFiles(
+                type: FileType.custom,
+                allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg'],
+                withData: true,
+              );
+              if (!mounted) return;
+              if (result != null && result.files.isNotEmpty) {
+                final file = result.files.first;
+                setState(() {
+                  _documentBytes = file.bytes;
+                  _documentFileName = file.name;
+                  _documentPath = file.path;
+                });
+              }
+            } catch (e) {
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Unable to open file picker. ${toUserFriendlyMessage(e.toString())}',
+                  ),
+                ),
+              );
             }
           },
         ),
@@ -502,7 +533,15 @@ class _Step3ContentState extends State<_Step3Content> {
         _ReviewRow(label: 'Email', value: widget.step1Data.email),
         _ReviewRow(
           label: 'Services',
-          value: '${widget.step2Data.services.length} selected',
+          value: () {
+            final extra = widget.step2Data.otherServices
+                    ?.split(RegExp(r',\s*'))
+                    .map((s) => s.trim())
+                    .where((s) => s.isNotEmpty)
+                    .length ??
+                0;
+            return '${widget.step2Data.services.length + extra} selected';
+          }(),
         ),
         const SizedBox(height: AppSpacing.md),
         Text(

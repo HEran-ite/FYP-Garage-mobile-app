@@ -1,10 +1,12 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/error/user_friendly_errors.dart';
 import '../../domain/entities/registration_entity.dart';
 import '../../domain/usecases/clear_session_usecase.dart';
 import '../../domain/usecases/login_usecase.dart';
 import '../../domain/usecases/register_usecase.dart';
 import '../../domain/usecases/restore_session_usecase.dart';
+import '../../domain/usecases/update_garage_services_usecase.dart';
 import '../../domain/usecases/update_profile_usecase.dart';
 import 'auth_event.dart';
 import 'auth_state.dart';
@@ -15,11 +17,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     required LoginUseCase loginUseCase,
     required RegisterUseCase registerUseCase,
     required UpdateProfileUseCase updateProfileUseCase,
+    required UpdateGarageServicesUseCase updateGarageServicesUseCase,
     required RestoreSessionUseCase restoreSessionUseCase,
     required ClearSessionUseCase clearSessionUseCase,
   })  : _loginUseCase = loginUseCase,
         _registerUseCase = registerUseCase,
         _updateProfileUseCase = updateProfileUseCase,
+        _updateGarageServicesUseCase = updateGarageServicesUseCase,
         _restoreSessionUseCase = restoreSessionUseCase,
         _clearSessionUseCase = clearSessionUseCase,
         super(const AuthInitial()) {
@@ -35,11 +39,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthRegistrationCancelled>(_onRegistrationCancelled);
     on<AuthLogoutRequested>(_onLogoutRequested);
     on<AuthProfileUpdated>(_onProfileUpdated);
+    on<AuthServicesUpdated>(_onServicesUpdated);
   }
 
   final LoginUseCase _loginUseCase;
   final RegisterUseCase _registerUseCase;
   final UpdateProfileUseCase _updateProfileUseCase;
+  final UpdateGarageServicesUseCase _updateGarageServicesUseCase;
   final RestoreSessionUseCase _restoreSessionUseCase;
   final ClearSessionUseCase _clearSessionUseCase;
 
@@ -53,7 +59,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       password: event.password,
     );
     result.fold(
-      (failure) => emit(AuthLoginError(failure.message)),
+      (failure) => emit(AuthLoginError(toUserFriendlyMessage(failure.message))),
       (user) => emit(AuthLoginSuccess(user)),
     );
   }
@@ -98,6 +104,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthRegistrationStep2Back event,
     Emitter<AuthState> emit,
   ) {
+    // Step 2 back should work even if we were showing an error state with preserved data.
     emit(const AuthRegistrationStep1());
   }
 
@@ -106,8 +113,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) {
     final state = this.state;
-    if (state is! AuthRegistrationStep3) return;
-    emit(AuthRegistrationStep2(state.step1Data));
+    if (state is AuthRegistrationStep3) {
+      emit(AuthRegistrationStep2(state.step1Data));
+      return;
+    }
+    // If submission failed, we render step 3 using preserved step data inside AuthRegistrationError.
+    if (state is AuthRegistrationError && state.step1Data != null) {
+      emit(AuthRegistrationStep2(state.step1Data!));
+    }
   }
 
   Future<void> _onRegistrationSubmitted(
@@ -138,7 +151,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     );
     result.fold(
       (failure) => emit(AuthRegistrationError(
-        failure.message,
+        toUserFriendlyMessage(failure.message),
         step1Data: state.step1Data,
         step2Data: state.step2Data,
       )),
@@ -164,9 +177,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthRestoreSession event,
     Emitter<AuthState> emit,
   ) async {
+    emit(const AuthRestoringSession());
     final user = await _restoreSessionUseCase();
     if (user != null) {
       emit(AuthLoginSuccess(user));
+    } else {
+      emit(const AuthInitial());
     }
   }
 
@@ -186,7 +202,28 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(AuthProfileUpdating(user));
     final result = await _updateProfileUseCase(user);
     result.fold(
-      (failure) => emit(AuthProfileUpdateError(failure.message, user)),
+      (failure) => emit(AuthProfileUpdateError(toUserFriendlyMessage(failure.message), user)),
+      (updatedUser) => emit(AuthLoginSuccess(updatedUser)),
+    );
+  }
+
+  Future<void> _onServicesUpdated(
+    AuthServicesUpdated event,
+    Emitter<AuthState> emit,
+  ) async {
+    final state = this.state;
+    if (state is! AuthLoginSuccess) return;
+    final user = state.user;
+    emit(AuthProfileUpdating(user));
+    // Use human-readable service names; backend services API expects names.
+    final slugs = List<String>.from(event.serviceLabels);
+    final result = await _updateGarageServicesUseCase(
+      event.garageId,
+      slugs,
+      event.otherServices,
+    );
+    result.fold(
+      (failure) => emit(AuthProfileUpdateError(toUserFriendlyMessage(failure.message), user)),
       (updatedUser) => emit(AuthLoginSuccess(updatedUser)),
     );
   }

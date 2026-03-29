@@ -57,6 +57,11 @@ class AuthInitial extends AuthState {
   const AuthInitial();
 }
 
+/// Checking saved session (SharedPreferences) on app start. Show loading, not login form.
+class AuthRestoringSession extends AuthState {
+  const AuthRestoringSession();
+}
+
 /// Login in progress
 class AuthLoginLoading extends AuthState {
   const AuthLoginLoading();

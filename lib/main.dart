@@ -10,6 +10,7 @@ import 'core/routing/app_router.dart';
 import 'core/routing/route_paths.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
+import 'features/auth/presentation/bloc/auth_event.dart';
 import 'injection/injection_container.dart';
 
 void main() async {
@@ -38,13 +39,41 @@ class GarageUpApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocProvider<AuthBloc>(
       create: (_) => sl<AuthBloc>(),
-      child: MaterialApp(
-        title: 'Garage Owner',
-        theme: AppTheme.lightTheme,
-        darkTheme: AppTheme.darkTheme,
-        onGenerateRoute: AppRouter.onGenerateRoute,
-        initialRoute: RoutePaths.login,
+      child: _AuthRestoreWrapper(
+        child: MaterialApp(
+          title: 'Garage Owner',
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          onGenerateRoute: AppRouter.onGenerateRoute,
+          initialRoute: RoutePaths.login,
+          debugShowCheckedModeBanner: false,
+        ),
       ),
     );
   }
+}
+
+/// Dispatches session restore on first frame so we recover auth state after hot restart or bloc recreation.
+class _AuthRestoreWrapper extends StatefulWidget {
+  const _AuthRestoreWrapper({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_AuthRestoreWrapper> createState() => _AuthRestoreWrapperState();
+}
+
+class _AuthRestoreWrapperState extends State<_AuthRestoreWrapper> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<AuthBloc>().add(const AuthRestoreSession());
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }

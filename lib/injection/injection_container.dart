@@ -18,8 +18,17 @@ import '../features/auth/domain/usecases/clear_session_usecase.dart';
 import '../features/auth/domain/usecases/login_usecase.dart';
 import '../features/auth/domain/usecases/register_usecase.dart';
 import '../features/auth/domain/usecases/restore_session_usecase.dart';
+import '../features/auth/domain/usecases/update_garage_services_usecase.dart';
 import '../features/auth/domain/usecases/update_profile_usecase.dart';
 import '../features/auth/presentation/bloc/auth_bloc.dart';
+import '../features/notifications/data/datasources/notifications_remote_datasource.dart';
+import '../features/notifications/data/datasources/notifications_remote_datasource_impl.dart';
+import '../features/notifications/data/repositories/notifications_repository_impl.dart';
+import '../features/notifications/domain/repositories/notifications_repository.dart';
+import '../features/notifications/domain/usecases/get_notifications_usecase.dart';
+import '../features/notifications/presentation/bloc/notification_bloc.dart';
+import '../features/settings/data/datasources/garage_settings_remote_datasource.dart';
+import '../features/settings/data/datasources/garage_settings_remote_datasource_impl.dart';
 
 final GetIt sl = GetIt.instance;
 
@@ -36,13 +45,18 @@ Future<void> setupDependencyInjection() async {
   sl.registerLazySingleton<LoginUseCase>(() => LoginUseCase(sl()));
   sl.registerLazySingleton<RegisterUseCase>(() => RegisterUseCase(sl()));
   sl.registerLazySingleton<UpdateProfileUseCase>(() => UpdateProfileUseCase(sl()));
+  sl.registerLazySingleton<UpdateGarageServicesUseCase>(
+    () => UpdateGarageServicesUseCase(sl()),
+  );
   sl.registerLazySingleton<RestoreSessionUseCase>(() => RestoreSessionUseCase(sl()));
   sl.registerLazySingleton<ClearSessionUseCase>(() => ClearSessionUseCase(sl()));
-  sl.registerFactory<AuthBloc>(
+  // Singleton so auth state is preserved across widget rebuilds (avoids "Please sign in" after a few minutes).
+  sl.registerLazySingleton<AuthBloc>(
     () => AuthBloc(
       loginUseCase: sl(),
       registerUseCase: sl(),
       updateProfileUseCase: sl(),
+      updateGarageServicesUseCase: sl(),
       restoreSessionUseCase: sl(),
       clearSessionUseCase: sl(),
     ),
@@ -65,5 +79,24 @@ Future<void> setupDependencyInjection() async {
   );
   sl.registerLazySingleton<AvailabilityRepository>(
     () => AvailabilityRepositoryImpl(sl<AvailabilityRemoteDataSource>()),
+  );
+
+  // Notifications (garage: GET /garages/notifications)
+  sl.registerLazySingleton<NotificationsRemoteDataSource>(
+    () => NotificationsRemoteDataSourceImpl(),
+  );
+  sl.registerLazySingleton<NotificationsRepository>(
+    () => NotificationsRepositoryImpl(sl()),
+  );
+  sl.registerLazySingleton<GetNotificationsUseCase>(
+    () => GetNotificationsUseCase(sl()),
+  );
+  sl.registerFactory<NotificationBloc>(
+    () => NotificationBloc(sl()),
+  );
+
+  // Garage settings (GET/PUT /garages/settings)
+  sl.registerLazySingleton<GarageSettingsRemoteDataSource>(
+    () => GarageSettingsRemoteDataSourceImpl(),
   );
 }

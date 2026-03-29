@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/constants/border_radius.dart';
 import '../../../../core/constants/spacing.dart';
+import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../injection/injection_container.dart';
 import '../../../appointments/data/models/appointment_model.dart';
@@ -12,6 +13,9 @@ import '../../../appointments/presentation/bloc/appointment_state.dart';
 import '../../../appointments/presentation/pages/appointment_list_page.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
+import '../../../notifications/presentation/bloc/notification_bloc.dart';
+import '../../../notifications/presentation/bloc/notification_event.dart';
+import '../../../notifications/presentation/bloc/notification_state.dart';
 import '../../../profile/presentation/pages/profile_page.dart';
 import '../../../profile/presentation/pages/set_availability_page.dart';
 import '../../../services/presentation/pages/service_list_page.dart';
@@ -30,9 +34,11 @@ class _DashboardPageState extends State<DashboardPage> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider<AppointmentBloc>(
-      create: (_) => sl<AppointmentBloc>(),
-      child: Scaffold(
+    return BlocProvider<NotificationBloc>(
+      create: (_) => sl<NotificationBloc>()..add(const LoadNotifications()),
+      child: BlocProvider<AppointmentBloc>(
+        create: (_) => sl<AppointmentBloc>(),
+        child: Scaffold(
         backgroundColor: AppColors.background,
         body: _selectedIndex == 0
             ? _DashboardContent(
@@ -48,56 +54,60 @@ class _DashboardPageState extends State<DashboardPage> {
                 },
               )
             : _selectedIndex == 1
-                ? const AppointmentListPage()
-                : _selectedIndex == 2
-                    ? const ServiceListPage()
-                    : const ProfilePage(),
+            ? const AppointmentListPage()
+            : _selectedIndex == 2
+            ? const ServiceListPage()
+            : const ProfilePage(),
         bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.06),
-              blurRadius: 8,
-              offset: const Offset(0, -2),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _NavItem(
-                  icon: Icons.dashboard_rounded,
-                  label: 'Dashboard',
-                  isSelected: _selectedIndex == 0,
-                  onTap: () => setState(() => _selectedIndex = 0),
-                ),
-                _NavItem(
-                  icon: Icons.calendar_today_rounded,
-                  label: 'Appointments',
-                  isSelected: _selectedIndex == 1,
-                  onTap: () => setState(() => _selectedIndex = 1),
-                ),
-                _NavItem(
-                  icon: Icons.build_circle_outlined,
-                  label: 'Services',
-                  isSelected: _selectedIndex == 2,
-                  onTap: () => setState(() => _selectedIndex = 2),
-                ),
-                _NavItem(
-                  icon: Icons.person_outline_rounded,
-                  label: 'Profile',
-                  isSelected: _selectedIndex == 3,
-                  onTap: () => setState(() => _selectedIndex = 3),
-                ),
-              ],
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.06),
+                blurRadius: 8,
+                offset: const Offset(0, -2),
+              ),
+            ],
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: AppSpacing.xs,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _NavItem(
+                    icon: Icons.dashboard_rounded,
+                    label: 'Dashboard',
+                    isSelected: _selectedIndex == 0,
+                    onTap: () => setState(() => _selectedIndex = 0),
+                  ),
+                  _NavItem(
+                    icon: Icons.calendar_today_rounded,
+                    label: 'Appointments',
+                    isSelected: _selectedIndex == 1,
+                    onTap: () => setState(() => _selectedIndex = 1),
+                  ),
+                  _NavItem(
+                    icon: Icons.build_circle_outlined,
+                    label: 'Services',
+                    isSelected: _selectedIndex == 2,
+                    onTap: () => setState(() => _selectedIndex = 2),
+                  ),
+                  _NavItem(
+                    icon: Icons.person_outline_rounded,
+                    label: 'Profile',
+                    isSelected: _selectedIndex == 3,
+                    onTap: () => setState(() => _selectedIndex = 3),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
-      ),
+        ),
       ),
     );
   }
@@ -122,7 +132,10 @@ class _NavItem extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(AppBorderRadius.sm),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.sm,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -135,9 +148,9 @@ class _NavItem extends StatelessWidget {
             Text(
               label,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: isSelected ? AppColors.primary : AppColors.textSecondary,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                  ),
+                color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              ),
             ),
           ],
         ),
@@ -147,10 +160,7 @@ class _NavItem extends StatelessWidget {
 }
 
 class _DashboardContent extends StatefulWidget {
-  const _DashboardContent({
-    this.onViewAppointments,
-    this.onUpdateAvailability,
-  });
+  const _DashboardContent({this.onViewAppointments, this.onUpdateAvailability});
 
   final VoidCallback? onViewAppointments;
   final VoidCallback? onUpdateAvailability;
@@ -174,6 +184,9 @@ class _DashboardContentState extends State<_DashboardContent> {
         final garageName = authState is AuthLoginSuccess
             ? (authState.user.name.isEmpty ? 'My Garage' : authState.user.name)
             : 'My Garage';
+        final garageStatus = authState is AuthLoginSuccess
+            ? authState.user.garageStatus
+            : null;
         return BlocBuilder<AppointmentBloc, AppointmentState>(
           builder: (context, appointmentState) {
             return SafeArea(
@@ -183,7 +196,10 @@ class _DashboardContentState extends State<_DashboardContent> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const SizedBox(height: AppSpacing.lg),
-                    _DashboardHeader(garageName: garageName),
+                    _DashboardHeader(
+                      garageName: garageName,
+                      garageStatus: garageStatus,
+                    ),
                     const SizedBox(height: AppSpacing.xl),
                     _StatsGrid(state: appointmentState),
                     const SizedBox(height: AppSpacing.xl),
@@ -212,12 +228,35 @@ class _DashboardContentState extends State<_DashboardContent> {
 }
 
 class _DashboardHeader extends StatelessWidget {
-  const _DashboardHeader({required this.garageName});
+  const _DashboardHeader({
+    required this.garageName,
+    this.garageStatus,
+  });
 
   final String garageName;
+  final String? garageStatus;
+
+  /// Backend AccountStatus: ACTIVE, PENDING, REJECTED, BLOCKED, WARNED
+  static ({String label, Color color}) _statusDisplay(String? status) {
+    switch (status?.toUpperCase()) {
+      case 'ACTIVE':
+        return (label: 'Approved', color: AppColors.success);
+      case 'PENDING':
+        return (label: 'Pending approval', color: AppColors.warning);
+      case 'REJECTED':
+        return (label: 'Rejected', color: AppColors.error);
+      case 'BLOCKED':
+        return (label: 'Blocked', color: AppColors.error);
+      case 'WARNED':
+        return (label: 'Warned', color: AppColors.warning);
+      default:
+        return (label: 'Pending approval', color: AppColors.warning);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final statusDisplay = _statusDisplay(garageStatus);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -228,36 +267,39 @@ class _DashboardHeader extends StatelessWidget {
               Text(
                 'Dashboard',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                    ),
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
                 garageName,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
+                  color: AppColors.textSecondary,
+                ),
               ),
               const SizedBox(height: AppSpacing.sm),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: AppSpacing.xs,
+                ),
                 decoration: BoxDecoration(
-                  color: AppColors.success.withOpacity(0.12),
+                  color: statusDisplay.color.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(AppBorderRadius.full),
-                  border: Border.all(color: AppColors.success.withOpacity(0.4)),
+                  border: Border.all(color: statusDisplay.color.withOpacity(0.4)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.circle, size: 8, color: AppColors.success),
+                    Icon(Icons.circle, size: 8, color: statusDisplay.color),
                     const SizedBox(width: AppSpacing.sm),
                     Text(
-                      'Available',
+                      statusDisplay.label,
                       style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                            color: AppColors.success,
-                            fontWeight: FontWeight.w500,
-                          ),
+                        color: statusDisplay.color,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ],
                 ),
@@ -265,13 +307,29 @@ class _DashboardHeader extends StatelessWidget {
             ],
           ),
         ),
-        IconButton(
-          onPressed: () {},
-          icon: Badge(
-            isLabelVisible: true,
-            smallSize: 8,
-            child: Icon(Icons.notifications_outlined, color: AppColors.textPrimary),
-          ),
+        BlocBuilder<NotificationBloc, NotificationState>(
+          builder: (context, state) {
+            final showBadge = state is NotificationLoaded &&
+                state.unreadCount > 0;
+            return IconButton(
+              onPressed: () {
+                Navigator.of(context).pushNamed(RoutePaths.notifications);
+              },
+              icon: showBadge
+                  ? Badge(
+                      isLabelVisible: true,
+                      smallSize: 8,
+                      child: Icon(
+                        Icons.notifications_outlined,
+                        color: AppColors.textPrimary,
+                      ),
+                    )
+                  : Icon(
+                      Icons.notifications_outlined,
+                      color: AppColors.textPrimary,
+                    ),
+            );
+          },
         ),
       ],
     );
@@ -285,7 +343,9 @@ class _StatsGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final loaded = state is AppointmentLoaded ? state as AppointmentLoaded : null;
+    final loaded = state is AppointmentLoaded
+        ? state as AppointmentLoaded
+        : null;
     final all = loaded?.countAll ?? 0;
     final pending = loaded?.countPending ?? 0;
     final inProgress = loaded?.countInProgress ?? 0;
@@ -294,7 +354,9 @@ class _StatsGrid extends StatelessWidget {
     if (state is AppointmentLoading) {
       return const SizedBox(
         height: 160,
-        child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+        child: Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
       );
     }
 
@@ -379,17 +441,17 @@ class _StatCard extends StatelessWidget {
           Text(
             value,
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                ),
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
           ),
           const SizedBox(height: AppSpacing.xs),
           Flexible(
             child: Text(
               label,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -419,9 +481,9 @@ class _QuickActionsSection extends StatelessWidget {
         Text(
           'Quick Actions',
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
+            fontWeight: FontWeight.bold,
+            color: AppColors.textPrimary,
+          ),
         ),
         const SizedBox(height: AppSpacing.md),
         FilledButton(
@@ -456,10 +518,7 @@ class _QuickActionsSection extends StatelessWidget {
 }
 
 class _UpcomingAppointmentsSection extends StatelessWidget {
-  const _UpcomingAppointmentsSection({
-    this.onViewAll,
-    required this.state,
-  });
+  const _UpcomingAppointmentsSection({this.onViewAll, required this.state});
 
   final VoidCallback? onViewAll;
   final AppointmentState state;
@@ -480,9 +539,9 @@ class _UpcomingAppointmentsSection extends StatelessWidget {
             Text(
               'Upcoming Appointments',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
             ),
             TextButton(
               onPressed: onViewAll,
@@ -516,16 +575,18 @@ class _UpcomingAppointmentsSection extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
             child: Text(
               'No upcoming appointments',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
             ),
           )
         else
-          ...list.map((a) => Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                child: _DashboardAppointmentCard(appointment: a),
-              )),
+          ...list.map(
+            (a) => Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.md),
+              child: _DashboardAppointmentCard(appointment: a),
+            ),
+          ),
       ],
     );
   }
@@ -562,20 +623,23 @@ class _DashboardAppointmentCard extends StatelessWidget {
           Text(
             'Driver',
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
             appointment.serviceDescription,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
           ),
           const SizedBox(height: AppSpacing.sm),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: AppSpacing.xs,
+            ),
             decoration: BoxDecoration(
               color: isConfirmed
                   ? AppColors.success.withOpacity(0.12)
@@ -585,31 +649,39 @@ class _DashboardAppointmentCard extends StatelessWidget {
             child: Text(
               appointment.statusLabel,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: isConfirmed ? AppColors.success : AppColors.warning,
-                    fontWeight: FontWeight.w500,
-                  ),
+                color: isConfirmed ? AppColors.success : AppColors.warning,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
           Row(
             children: [
-              Icon(Icons.access_time_rounded, size: 16, color: AppColors.textSecondary),
+              Icon(
+                Icons.access_time_rounded,
+                size: 16,
+                color: AppColors.textSecondary,
+              ),
               const SizedBox(width: AppSpacing.xs),
               Text(
                 timePart,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
               ),
               const SizedBox(width: AppSpacing.lg),
-              Icon(Icons.build_circle_outlined, size: 16, color: AppColors.textSecondary),
+              Icon(
+                Icons.build_circle_outlined,
+                size: 16,
+                color: AppColors.textSecondary,
+              ),
               const SizedBox(width: AppSpacing.xs),
               Expanded(
                 child: Text(
                   appointment.serviceDescription,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
+                    color: AppColors.textSecondary,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
