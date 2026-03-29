@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../../../../core/auth/session_invalidation.dart';
 import '../../../../core/config/api_config.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/error/exceptions.dart';
@@ -50,6 +51,7 @@ class NotificationsRemoteDataSourceImpl implements NotificationsRemoteDataSource
 
     final decoded = _parseJson(response.body);
     if (response.statusCode != 200) {
+      reportUnauthorizedHttpStatus(response.statusCode);
       final body = decoded is Map ? decoded as Map<String, dynamic> : <String, dynamic>{};
       final err = body['error']?.toString() ?? 'Failed to load notifications';
       throw ServerException(err);

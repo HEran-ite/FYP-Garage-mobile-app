@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:dartz/dartz.dart';
 
+import '../../../../core/auth/jwt_expiry.dart';
 import '../../../../core/constants/auth_constants.dart';
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/error/failures.dart';
@@ -77,8 +78,21 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<Either<Failure, UserEntity?>> getCurrentUser() async {
     try {
+      final session = await _sessionStorage.load();
+      if (session == null) {
+        _remoteDataSource.clearAuthToken();
+        return const Right(null);
+      }
+      if (JwtExpiry.isExpired(session.token) == true) {
+        await clearSession();
+        return const Right(null);
+      }
+      _remoteDataSource.setAuthToken(session.token);
       final user = await _remoteDataSource.getCurrentUser();
       return Right(user);
+    } on UnauthorizedException {
+      await clearSession();
+      return const Right(null);
     } on CacheException catch (e) {
       return Left(CacheFailure(e.message));
     } catch (e) {
@@ -196,6 +210,10 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<UserEntity?> loadSession() async {
     final session = await _sessionStorage.load();
     if (session == null) return null;
+    if (JwtExpiry.isExpired(session.token) == true) {
+      await clearSession();
+      return null;
+    }
     _remoteDataSource.setAuthToken(session.token);
     // Refetch profile so we have latest services when displaying
     try {
@@ -215,6 +233,9 @@ class AuthRepositoryImpl implements AuthRepository {
       );
       await _sessionStorage.save(session.token, merged);
       return merged;
+    } on UnauthorizedException {
+      await clearSession();
+      return null;
     } catch (_) {
       return session.user;
     }

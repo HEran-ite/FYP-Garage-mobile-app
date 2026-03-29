@@ -15,6 +15,11 @@ class ServerException extends AppException {
   const ServerException(super.message);
 }
 
+/// Session no longer valid (HTTP 401/403). Still a [ServerException] for shared handling.
+class UnauthorizedException extends ServerException {
+  const UnauthorizedException([super.message = 'Please sign in again.']);
+}
+
 /// Network exception
 class NetworkException extends AppException {
   const NetworkException(super.message);

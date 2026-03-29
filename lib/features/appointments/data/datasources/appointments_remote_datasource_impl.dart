@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../../../../core/auth/session_invalidation.dart';
 import '../../../../core/config/api_config.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/error/exceptions.dart';
@@ -42,8 +43,9 @@ class AppointmentsRemoteDataSourceImpl implements AppointmentsRemoteDataSource {
   }
 
   static String _errorMessage(int statusCode, Map<String, dynamic> body, String fallback) {
+    reportUnauthorizedHttpStatus(statusCode);
     if (statusCode >= 500) return 'Something went wrong. Please try again.';
-    if (statusCode == 401) return 'Please sign in again.';
+    if (statusCode == 401 || statusCode == 403) return 'Please sign in again.';
     return body['error']?.toString() ?? body['message']?.toString() ?? fallback;
   }
 

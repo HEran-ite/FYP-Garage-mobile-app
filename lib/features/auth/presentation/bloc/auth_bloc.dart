@@ -38,6 +38,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthRegistrationSuccessDismissed>(_onRegistrationSuccessDismissed);
     on<AuthRegistrationCancelled>(_onRegistrationCancelled);
     on<AuthLogoutRequested>(_onLogoutRequested);
+    on<AuthSessionInvalidated>(_onSessionInvalidated);
     on<AuthProfileUpdated>(_onProfileUpdated);
     on<AuthServicesUpdated>(_onServicesUpdated);
   }
@@ -188,6 +189,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
   Future<void> _onLogoutRequested(
     AuthLogoutRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    await _clearSessionUseCase();
+    emit(const AuthInitial());
+  }
+
+  Future<void> _onSessionInvalidated(
+    AuthSessionInvalidated event,
     Emitter<AuthState> emit,
   ) async {
     await _clearSessionUseCase();

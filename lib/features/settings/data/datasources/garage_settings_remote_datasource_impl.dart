@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../../../../core/auth/session_invalidation.dart';
 import '../../../../core/config/api_config.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/error/exceptions.dart';
@@ -52,6 +53,7 @@ class GarageSettingsRemoteDataSourceImpl implements GarageSettingsRemoteDataSour
         .timeout(ApiConstants.connectionTimeout);
     final decoded = _parseObject(response.body);
     if (response.statusCode != 200) {
+      reportUnauthorizedHttpStatus(response.statusCode);
       final err = decoded['error']?.toString() ?? 'Failed to load settings';
       throw ServerException(err);
     }
@@ -70,6 +72,7 @@ class GarageSettingsRemoteDataSourceImpl implements GarageSettingsRemoteDataSour
         .timeout(ApiConstants.connectionTimeout);
     final decoded = _parseObject(response.body);
     if (response.statusCode != 200) {
+      reportUnauthorizedHttpStatus(response.statusCode);
       final err = decoded['error']?.toString() ?? 'Failed to update settings';
       throw ServerException(err);
     }
