@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 
+import '../../../../core/auth/session_invalidation.dart';
 import '../../../../core/config/api_config.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/constants/auth_constants.dart';
@@ -27,6 +28,13 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
   final http.Client _client;
   String get _base => kApiBaseUrl;
+
+  void _throwUnauthorizedIfNeeded(int statusCode) {
+    if (statusCode == 401 || statusCode == 403) {
+      reportUnauthorizedHttpStatus(statusCode);
+      throw const UnauthorizedException();
+    }
+  }
 
   @override
   String? get authToken => _authToken;
@@ -232,6 +240,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     if (response.statusCode == 200) {
       return UserModel.fromGarageJson(body);
     }
+    _throwUnauthorizedIfNeeded(response.statusCode);
     final err =
         body['error'] as String? ??
         body['errors']?.toString() ??
@@ -289,6 +298,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       if (response.statusCode == 200) {
         return UserModel.fromGarageJson(responseBody);
       }
+      _throwUnauthorizedIfNeeded(response.statusCode);
       final err =
           responseBody['error'] as String? ??
           responseBody['errors']?.toString() ??
@@ -317,6 +327,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
           )
           .timeout(ApiConstants.connectionTimeout);
       if (response.statusCode != 200) {
+        _throwUnauthorizedIfNeeded(response.statusCode);
         final body = _parseJsonResponse(response.body);
         final err =
             body['error'] as String? ??
@@ -365,6 +376,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         if (map.isEmpty) throw ServerException('Invalid create service response');
         return GarageServiceItem.fromJson(Map<String, dynamic>.from(map));
       }
+      _throwUnauthorizedIfNeeded(response.statusCode);
       final err =
           body['error'] as String? ??
           body['errors']?.toString() ??
@@ -393,6 +405,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
           )
           .timeout(ApiConstants.connectionTimeout);
       if (response.statusCode == 204 || response.statusCode == 200) return;
+      _throwUnauthorizedIfNeeded(response.statusCode);
       final body = _parseJsonResponse(response.body);
       final err =
           body['error'] as String? ??
@@ -429,6 +442,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
           )
           .timeout(ApiConstants.connectionTimeout);
       if (response.statusCode != 200) {
+        _throwUnauthorizedIfNeeded(response.statusCode);
         final parsed = _parseJsonResponse(response.body);
         final err =
             parsed['error'] as String? ??

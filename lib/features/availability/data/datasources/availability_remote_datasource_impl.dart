@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../../../../core/auth/session_invalidation.dart';
 import '../../../../core/config/api_config.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/error/exceptions.dart';
@@ -15,6 +16,13 @@ class AvailabilityRemoteDataSourceImpl implements AvailabilityRemoteDataSource {
 
   final http.Client _client;
   String get _base => kApiBaseUrl;
+
+  void _throwUnauthorizedIfNeeded(int statusCode) {
+    if (statusCode == 401 || statusCode == 403) {
+      reportUnauthorizedHttpStatus(statusCode);
+      throw const UnauthorizedException();
+    }
+  }
 
   Map<String, String> get _headers {
     final token = authToken;
@@ -36,6 +44,7 @@ class AvailabilityRemoteDataSourceImpl implements AvailabilityRemoteDataSource {
     final response = await _client
         .get(uri, headers: _headers)
         .timeout(ApiConstants.connectionTimeout);
+    _throwUnauthorizedIfNeeded(response.statusCode);
     final body = jsonDecode(response.body);
     if (response.statusCode != 200) {
       final err = body is Map ? (body['error'] as String?) : null;
@@ -66,6 +75,7 @@ class AvailabilityRemoteDataSourceImpl implements AvailabilityRemoteDataSource {
         )
         .timeout(ApiConstants.connectionTimeout);
     final body = jsonDecode(response.body) as Map<String, dynamic>? ?? {};
+    _throwUnauthorizedIfNeeded(response.statusCode);
     if (response.statusCode != 201) {
       throw ServerException(body['error'] as String? ?? 'Failed to create slot');
     }
@@ -88,6 +98,7 @@ class AvailabilityRemoteDataSourceImpl implements AvailabilityRemoteDataSource {
         .patch(uri, headers: _headers, body: jsonEncode(map))
         .timeout(ApiConstants.connectionTimeout);
     final body = jsonDecode(response.body) as Map<String, dynamic>? ?? {};
+    _throwUnauthorizedIfNeeded(response.statusCode);
     if (response.statusCode != 200) {
       throw ServerException(body['error'] as String? ?? 'Failed to update slot');
     }
@@ -100,6 +111,7 @@ class AvailabilityRemoteDataSourceImpl implements AvailabilityRemoteDataSource {
     final response = await _client
         .delete(uri, headers: _headers)
         .timeout(ApiConstants.connectionTimeout);
+    _throwUnauthorizedIfNeeded(response.statusCode);
     if (response.statusCode != 204 && response.statusCode != 200) {
       final body = jsonDecode(response.body);
       final err = body is Map ? (body['error'] as String?) : null;

@@ -112,6 +112,11 @@ class AuthRestoreSession extends AuthEvent {
   const AuthRestoreSession();
 }
 
+/// Clear session after expired JWT, 401/403 from API, or explicit invalidation. Root listener navigates to login.
+class AuthSessionInvalidated extends AuthEvent {
+  const AuthSessionInvalidated();
+}
+
 /// Logout: clear stored session and in-memory token, then return to login
 class AuthLogoutRequested extends AuthEvent {
   const AuthLogoutRequested();
