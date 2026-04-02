@@ -64,40 +64,37 @@ class CreateAccountPage extends StatelessWidget {
             foregroundColor: AppColors.textPrimary,
             elevation: 0,
           ),
-          body: state is AuthRegistrationSubmitting
-              ? const Center(child: CircularProgressIndicator())
-              : state is AuthRegistrationSuccess
+          body: state is AuthRegistrationSuccess
               ? _buildStepContent(context, state)
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.lg,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const SizedBox(height: AppSpacing.md),
-                      RegistrationStepper(currentStep: _currentStep(state)),
-                      const SizedBox(height: AppSpacing.lg),
-                      if (state is AuthRegistrationStep1)
-                        _Step1Content()
-                      else if (state is AuthRegistrationStep2)
-                        _Step2Content(step1Data: state.step1Data)
-                      else if (state is AuthRegistrationStep3)
-                        _Step3Content(
-                          step1Data: state.step1Data,
-                          step2Data: state.step2Data,
-                        )
-                      else if (state is AuthRegistrationError &&
-                          state.step1Data != null &&
-                          state.step2Data != null)
-                        _Step3Content(
-                          step1Data: state.step1Data!,
-                          step2Data: state.step2Data!,
-                        )
-                      else
-                        const SizedBox(),
-                    ],
-                  ),
+              : Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.lg,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const SizedBox(height: AppSpacing.md),
+                          RegistrationStepper(currentStep: _currentStep(state)),
+                          const SizedBox(height: AppSpacing.lg),
+                          ..._registrationStepChildren(state),
+                        ],
+                      ),
+                    ),
+                    if (state is AuthRegistrationSubmitting)
+                      Positioned.fill(
+                        child: AbsorbPointer(
+                          child: ColoredBox(
+                            color: Colors.black.withValues(alpha: 0.35),
+                            child: const Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
           ),
         );
@@ -107,8 +104,9 @@ class CreateAccountPage extends StatelessWidget {
 
   int _currentStep(AuthState state) {
     if (state is AuthRegistrationStep1) return AuthConstants.stepBasicInfo;
-    if (state is AuthRegistrationStep2)
+    if (state is AuthRegistrationStep2) {
       return AuthConstants.stepLocationServices;
+    }
     if (state is AuthRegistrationStep3 ||
         state is AuthRegistrationSubmitting ||
         (state is AuthRegistrationError &&
@@ -119,7 +117,48 @@ class CreateAccountPage extends StatelessWidget {
     return AuthConstants.stepBasicInfo;
   }
 
+  List<Widget> _registrationStepChildren(AuthState state) {
+    if (state is AuthRegistrationStep1) {
+      return [_Step1Content(restore: state.restore)];
+    }
+    if (state is AuthRegistrationStep2) {
+      return [
+        _Step2Content(
+          step1Data: state.step1Data,
+          restoreStep2: state.restoreStep2,
+        ),
+      ];
+    }
+    RegistrationStep1Data? s1;
+    RegistrationStep2Data? s2;
+    if (state is AuthRegistrationStep3) {
+      s1 = state.step1Data;
+      s2 = state.step2Data;
+    } else if (state is AuthRegistrationSubmitting) {
+      s1 = state.step1Data;
+      s2 = state.step2Data;
+    } else if (state is AuthRegistrationError &&
+        state.step1Data != null &&
+        state.step2Data != null) {
+      s1 = state.step1Data!;
+      s2 = state.step2Data!;
+    }
+    if (s1 != null && s2 != null) {
+      return [
+        _Step3Content(
+          key: const ValueKey<Object>('registration_step3_form'),
+          step1Data: s1,
+          step2Data: s2,
+        ),
+      ];
+    }
+    return [const SizedBox()];
+  }
+
   void _onBack(BuildContext context, AuthState state) {
+    if (state is AuthRegistrationSubmitting) {
+      return;
+    }
     if (state is AuthRegistrationStep1) {
       context.read<AuthBloc>().add(const AuthRegistrationCancelled());
       Navigator.of(context).pop();
@@ -167,6 +206,10 @@ class CreateAccountPage extends StatelessWidget {
 }
 
 class _Step1Content extends StatefulWidget {
+  const _Step1Content({this.restore});
+
+  final RegistrationStep1Data? restore;
+
   @override
   State<_Step1Content> createState() => _Step1ContentState();
 }
@@ -178,6 +221,19 @@ class _Step1ContentState extends State<_Step1Content> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   final _confirmPassword = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    final r = widget.restore;
+    if (r != null) {
+      _garageName.text = r.garageName;
+      _phone.text = r.phone;
+      _email.text = r.email;
+      _password.text = r.password;
+      _confirmPassword.text = r.confirmPassword;
+    }
+  }
 
   @override
   void dispose() {
@@ -217,7 +273,7 @@ class _Step1ContentState extends State<_Step1Content> {
             hint: AuthConstants.phonePlaceholder,
             controller: _phone,
             keyboardType: TextInputType.phone,
-            validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+            validator: AuthConstants.validateEthiopianPhone,
             maxLength: AuthConstants.maxPhoneLength,
             prefixIcon: const Icon(Icons.call, color: AppColors.inputIcon),
           ),
@@ -300,9 +356,13 @@ class _Step1ContentState extends State<_Step1Content> {
 }
 
 class _Step2Content extends StatefulWidget {
-  const _Step2Content({required this.step1Data});
+  const _Step2Content({
+    required this.step1Data,
+    this.restoreStep2,
+  });
 
   final RegistrationStep1Data step1Data;
+  final RegistrationStep2Data? restoreStep2;
 
   @override
   State<_Step2Content> createState() => _Step2ContentState();
@@ -315,6 +375,26 @@ class _Step2ContentState extends State<_Step2Content> {
   double? _pickedLat;
   double? _pickedLng;
   String? _pickedPlaceId;
+
+  @override
+  void initState() {
+    super.initState();
+    final r = widget.restoreStep2;
+    if (r != null) {
+      _addressController.text = r.address;
+      _selectedServices = List<String>.from(r.services);
+      if (r.otherServices != null && r.otherServices!.trim().isNotEmpty) {
+        _customServiceNames = r.otherServices!
+            .split(RegExp(r',\s*'))
+            .map((s) => s.trim())
+            .where((s) => s.isNotEmpty)
+            .toList();
+      }
+      _pickedLat = r.latitude;
+      _pickedLng = r.longitude;
+      _pickedPlaceId = r.placeId;
+    }
+  }
 
   @override
   void dispose() {
@@ -459,7 +539,11 @@ class _Step2ContentState extends State<_Step2Content> {
 }
 
 class _Step3Content extends StatefulWidget {
-  const _Step3Content({required this.step1Data, required this.step2Data});
+  const _Step3Content({
+    super.key,
+    required this.step1Data,
+    required this.step2Data,
+  });
 
   final RegistrationStep1Data step1Data;
   final RegistrationStep2Data step2Data;

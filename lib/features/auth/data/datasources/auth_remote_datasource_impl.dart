@@ -64,7 +64,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
           )
           .timeout(ApiConstants.connectionTimeout);
 
-      final body = jsonDecode(response.body) as Map<String, dynamic>? ?? {};
+      final body = _parseJsonResponse(response.body);
       if (response.statusCode == 200) {
         final token = body['token'] as String?;
         if (token != null) setAuthToken(token);
@@ -158,10 +158,12 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         licenseFileName ??
         (path != null ? path.split(RegExp(r'[/\\]')).last : 'document');
     final MediaType? contentType = _contentTypeFromFilename(filename);
+    // Backend multer expects businessDocument | document | registrationDocument
+    // (see driver-garage-backend garageDocumentUpload).
     if (hasBytes) {
       request.files.add(
         http.MultipartFile.fromBytes(
-          'business_license_document',
+          'businessDocument',
           licenseBytes,
           filename: filename,
           contentType: contentType,
@@ -175,7 +177,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         final bytes = await file.readAsBytes();
         request.files.add(
           http.MultipartFile.fromBytes(
-            'business_license_document',
+            'businessDocument',
             bytes,
             filename: filename,
             contentType: contentType,
@@ -191,7 +193,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         ApiConstants.connectionTimeout,
       );
       final response = await http.Response.fromStream(streamed);
-      final body = jsonDecode(response.body) as Map<String, dynamic>? ?? {};
+      final body = _parseJsonResponse(response.body);
 
       if (response.statusCode == 201) {
         return UserModel.fromSignupJson(body);
@@ -462,10 +464,12 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   static Map<String, dynamic> _parseJsonResponse(String body) {
     final trimmed = body.trim();
     if (trimmed.isEmpty) return {};
-    if (trimmed.toLowerCase().startsWith('<!')) {
+    final lower = trimmed.toLowerCase();
+    if (lower.startsWith('<!') || lower.startsWith('<html')) {
       throw ServerException(
-        'Server returned an error page instead of JSON. '
-        'Check that the API base URL is correct and the backend is running (e.g. PUT /garage/profile or PUT /garages/me/services).',
+        'Server returned an HTML page instead of JSON (wrong URL, proxy, or backend error). '
+        'Check API_BASE_URL in .env matches your server (e.g. http://10.0.2.2:4000 on Android emulator). '
+        'Garage signup is POST /garages/auth/signup.',
       );
     }
     try {

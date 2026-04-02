@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/constants/auth_constants.dart';
 import '../../../../core/error/user_friendly_errors.dart';
 import '../../domain/entities/registration_entity.dart';
 import '../../domain/usecases/clear_session_usecase.dart';
@@ -105,7 +106,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthRegistrationStep2Back event,
     Emitter<AuthState> emit,
   ) {
-    // Step 2 back should work even if we were showing an error state with preserved data.
+    final state = this.state;
+    if (state is AuthRegistrationStep2) {
+      emit(AuthRegistrationStep1(restore: state.step1Data));
+      return;
+    }
     emit(const AuthRegistrationStep1());
   }
 
@@ -115,12 +120,26 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) {
     final state = this.state;
     if (state is AuthRegistrationStep3) {
-      emit(AuthRegistrationStep2(state.step1Data));
+      emit(AuthRegistrationStep2(
+        state.step1Data,
+        restoreStep2: state.step2Data,
+      ));
       return;
     }
-    // If submission failed, we render step 3 using preserved step data inside AuthRegistrationError.
-    if (state is AuthRegistrationError && state.step1Data != null) {
-      emit(AuthRegistrationStep2(state.step1Data!));
+    if (state is AuthRegistrationSubmitting) {
+      emit(AuthRegistrationStep2(
+        state.step1Data,
+        restoreStep2: state.step2Data,
+      ));
+      return;
+    }
+    if (state is AuthRegistrationError &&
+        state.step1Data != null &&
+        state.step2Data != null) {
+      emit(AuthRegistrationStep2(
+        state.step1Data!,
+        restoreStep2: state.step2Data,
+      ));
     }
   }
 
@@ -129,21 +148,33 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) async {
     final state = this.state;
-    if (state is! AuthRegistrationStep3) return;
-    emit(const AuthRegistrationSubmitting());
+    late final RegistrationStep1Data s1;
+    late final RegistrationStep2Data s2;
+    if (state is AuthRegistrationStep3) {
+      s1 = state.step1Data;
+      s2 = state.step2Data;
+    } else if (state is AuthRegistrationError &&
+        state.step1Data != null &&
+        state.step2Data != null) {
+      s1 = state.step1Data!;
+      s2 = state.step2Data!;
+    } else {
+      return;
+    }
+    emit(AuthRegistrationSubmitting(step1Data: s1, step2Data: s2));
     final entity = RegistrationEntity(
-      garageName: state.step1Data.garageName,
-      phone: state.step1Data.phone,
-      email: state.step1Data.email,
-      password: state.step1Data.password,
-      confirmPassword: state.step1Data.confirmPassword,
-      address: state.step2Data.address,
-      services: state.step2Data.services,
-      otherServices: state.step2Data.otherServices,
+      garageName: s1.garageName,
+      phone: AuthConstants.normalizePhoneForApi(s1.phone),
+      email: s1.email,
+      password: s1.password,
+      confirmPassword: s1.confirmPassword,
+      address: s2.address,
+      services: s2.services,
+      otherServices: s2.otherServices,
       businessLicensePath: event.businessLicensePath,
-      latitude: state.step2Data.latitude,
-      longitude: state.step2Data.longitude,
-      placeId: state.step2Data.placeId,
+      latitude: s2.latitude,
+      longitude: s2.longitude,
+      placeId: s2.placeId,
     );
     final result = await _registerUseCase(
       entity,
@@ -153,10 +184,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     result.fold(
       (failure) => emit(AuthRegistrationError(
         toUserFriendlyMessage(failure.message),
-        step1Data: state.step1Data,
-        step2Data: state.step2Data,
+        step1Data: s1,
+        step2Data: s2,
       )),
-      (user) => emit(AuthRegistrationSuccess(user, state.step1Data.garageName)),
+      (user) => emit(AuthRegistrationSuccess(user, s1.garageName)),
     );
   }
 
