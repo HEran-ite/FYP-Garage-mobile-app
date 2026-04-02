@@ -44,6 +44,14 @@ String toUserFriendlyMessage(String message) {
     return 'Connection problem. Check your internet and try again.';
   }
 
+  // App reached a web page instead of the JSON API (wrong base URL or server down).
+  if (lower.contains('html page instead of json') ||
+      lower.contains('error page instead of json') ||
+      lower.contains('api_base_url')) {
+    return 'Cannot reach the garage server. Set API_BASE_URL in .env to your backend '
+        '(Android emulator: http://10.0.2.2:4000) and ensure npm run dev is running.';
+  }
+
   // Generic exception prefixes to strip
   final withoutPrefix = message
       .replaceFirst(RegExp(r'^Exception:\s*', caseSensitive: false), '')

@@ -87,19 +87,26 @@ class AuthLoginError extends AuthState {
   List<Object?> get props => [message];
 }
 
-/// Registration step 1 (basic info)
+/// Registration step 1 (basic info). [restore] repopulates fields when going back from step 2.
 class AuthRegistrationStep1 extends AuthState {
-  const AuthRegistrationStep1();
-}
+  const AuthRegistrationStep1({this.restore});
 
-/// Registration step 2 (location & services), with step 1 data
-class AuthRegistrationStep2 extends AuthState {
-  const AuthRegistrationStep2(this.step1Data);
-
-  final RegistrationStep1Data step1Data;
+  final RegistrationStep1Data? restore;
 
   @override
-  List<Object?> get props => [step1Data];
+  List<Object?> get props => [restore];
+}
+
+/// Registration step 2 (location & services), with step 1 data.
+/// [restoreStep2] repopulates address/map/services when returning from step 3 or after an error.
+class AuthRegistrationStep2 extends AuthState {
+  const AuthRegistrationStep2(this.step1Data, {this.restoreStep2});
+
+  final RegistrationStep1Data step1Data;
+  final RegistrationStep2Data? restoreStep2;
+
+  @override
+  List<Object?> get props => [step1Data, restoreStep2];
 }
 
 /// Registration step 3 (verification), with step 1 and 2 data
@@ -113,9 +120,18 @@ class AuthRegistrationStep3 extends AuthState {
   List<Object?> get props => [step1Data, step2Data];
 }
 
-/// Registration submit in progress
+/// Registration submit in progress (keeps step data so step 3 UI and document stay mounted).
 class AuthRegistrationSubmitting extends AuthState {
-  const AuthRegistrationSubmitting();
+  const AuthRegistrationSubmitting({
+    required this.step1Data,
+    required this.step2Data,
+  });
+
+  final RegistrationStep1Data step1Data;
+  final RegistrationStep2Data step2Data;
+
+  @override
+  List<Object?> get props => [step1Data, step2Data];
 }
 
 /// Registration submitted successfully (show modal)

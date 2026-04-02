@@ -13,6 +13,7 @@ class AuthConstants {
   /// Field constraints (backend requires min 8 for password)
   static const int minPasswordLength = 8;
   static const int maxGarageNameLength = 100;
+  /// Enough for +251 9XX XXX XXX with spaces; validation uses normalized length.
   static const int maxPhoneLength = 20;
   static const int maxEmailLength = 255;
   static const int maxAddressLength = 500;
@@ -25,7 +26,39 @@ class AuthConstants {
   static const String expectedApprovalTime = '24-48 hours';
 
   /// Placeholders
-  static const String phonePlaceholder = '+1 (555) 000-0000';
+  static const String phonePlaceholder = '+251 9XX XXX XXX, 2519…, or 09XXXXXXXX';
+
+  /// Ethiopian mobile: `+251` + 9 digits (13 chars), `251` + 9 digits (12), or `09` + 8 digits (10).
+  static const String phoneFormatHint =
+      'Use +251 9XX XXX XXX (13 characters), 2519XXXXXXXX (12 digits), or 09XXXXXXXX (10 digits).';
+
+  /// Strip spaces and dashes; keep leading `+`.
+  static String normalizePhoneInput(String raw) {
+    final t = raw.trim();
+    if (t.startsWith('+')) {
+      return '+${t.substring(1).replaceAll(RegExp(r'[\s\-]'), '')}';
+    }
+    return t.replaceAll(RegExp(r'[\s\-]'), '');
+  }
+
+  /// Returns `null` if valid, else error message.
+  static String? validateEthiopianPhone(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return 'Required';
+    final n = normalizePhoneInput(raw);
+    if (RegExp(r'^\+2519\d{8}$').hasMatch(n)) return null;
+    if (RegExp(r'^2519\d{8}$').hasMatch(n)) return null;
+    if (RegExp(r'^09\d{8}$').hasMatch(n)) return null;
+    return phoneFormatHint;
+  }
+
+  /// Normalized international form for API (+2519XXXXXXXX).
+  static String normalizePhoneForApi(String raw) {
+    final n = normalizePhoneInput(raw);
+    if (n.startsWith('+251')) return n;
+    if (RegExp(r'^2519\d{8}$').hasMatch(n)) return '+$n';
+    if (RegExp(r'^09\d{8}$').hasMatch(n)) return '+251${n.substring(1)}';
+    return n;
+  }
   static const String passwordPlaceholder = 'Enter your password';
   static const String confirmPasswordPlaceholder = 'Confirm your password';
   static const String otherServicesPlaceholder =
