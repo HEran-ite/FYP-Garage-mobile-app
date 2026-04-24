@@ -13,6 +13,7 @@ class ApiConstants {
 
   /// Garage profile (backend garage-missing-endpoints: GET/PUT /garage/profile)
   static const String garageProfile = '/garage/profile';
+  static const String garageChangePassword = '/garage/profile/change-password';
 
   /// Garage services (backend: GET/PUT/POST /garages/me/services, PATCH/DELETE /garages/me/services/:id)
   static const String garageMeServicesList = '/garages/me/services';
@@ -37,6 +38,17 @@ class ApiConstants {
 
   /// Garage notifications (backend: GET /garages/notifications)
   static const String garageNotifications = '/garages/notifications';
+  static String garageNotificationReadById(String id) =>
+      '/garages/notifications/$id/read';
+  static const String garageNotificationsReadAll =
+      '/garages/notifications/read-all';
+
+  /// Garage ratings/reviews
+  /// Driver-facing: GET /garages/ratings/:garageId/reviews
+  /// Garage-facing: GET /garages/ratings/reviews/me
+  static const String garageRatingsReviewsMe = '/garages/ratings/reviews/me';
+  static String garageRatingsReviewsByGarageId(String garageId) =>
+      '/garages/ratings/$garageId/reviews';
 
   /// Garage settings (backend: GET/PUT /garages/settings)
   static const String garageSettings = '/garages/settings';

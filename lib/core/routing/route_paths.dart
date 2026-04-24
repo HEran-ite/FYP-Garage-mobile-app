@@ -3,6 +3,7 @@ class RoutePaths {
   RoutePaths._();
 
   // Auth
+  static const String onboarding = '/onboarding';
   static const String login = '/login';
   static const String createAccount = '/create-account';
 

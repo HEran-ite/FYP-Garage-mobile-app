@@ -9,6 +9,7 @@ import '../../features/auth/presentation/pages/create_account_page.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/dashboard/presentation/pages/dashboard_page.dart';
 import '../../features/notifications/presentation/pages/notifications_page.dart';
+import '../../features/onboarding/presentation/pages/onboarding_page.dart';
 import '../../features/profile/presentation/pages/profile_page.dart';
 import '../../features/services/presentation/pages/service_list_page.dart';
 import 'route_paths.dart';
@@ -19,6 +20,11 @@ class AppRouter {
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
+      case RoutePaths.onboarding:
+        return MaterialPageRoute<void>(
+          settings: settings,
+          builder: (_) => const OnboardingPage(),
+        );
       case RoutePaths.login:
         return MaterialPageRoute<void>(
           settings: settings,

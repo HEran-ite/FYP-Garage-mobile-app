@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_maps_flutter_platform_interface/google_maps_flutter_platform_interface.dart';
 import 'package:google_maps_flutter_android/google_maps_flutter_android.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/auth/jwt_expiry.dart';
 import 'core/auth/session_invalidation.dart';
@@ -16,6 +17,7 @@ import 'features/auth/presentation/bloc/auth_bloc.dart';
 import 'features/auth/presentation/bloc/auth_event.dart';
 import 'features/auth/presentation/bloc/auth_state.dart';
 import 'features/auth/presentation/pages/login_page.dart';
+import 'features/onboarding/presentation/pages/onboarding_page.dart';
 import 'injection/injection_container.dart';
 
 /// Global navigator so session invalidation clears the stack from any screen (e.g. dashboard).
@@ -41,12 +43,16 @@ void main() async {
   }
 
   await setupDependencyInjection();
+  final prefs = await SharedPreferences.getInstance();
+  final hasSeenOnboarding = prefs.getBool(OnboardingPage.seenKey) ?? false;
 
-  runApp(const GarageUpApp());
+  runApp(GarageUpApp(showOnboarding: !hasSeenOnboarding));
 }
 
 class GarageUpApp extends StatelessWidget {
-  const GarageUpApp({super.key});
+  const GarageUpApp({super.key, required this.showOnboarding});
+
+  final bool showOnboarding;
 
   @override
   Widget build(BuildContext context) {
@@ -76,7 +82,7 @@ class GarageUpApp extends StatelessWidget {
               theme: AppTheme.lightTheme,
               darkTheme: AppTheme.darkTheme,
               onGenerateRoute: AppRouter.onGenerateRoute,
-              initialRoute: RoutePaths.login,
+              initialRoute: showOnboarding ? RoutePaths.onboarding : RoutePaths.login,
               debugShowCheckedModeBanner: false,
             ),
           ),

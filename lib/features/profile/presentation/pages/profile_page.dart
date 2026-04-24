@@ -11,6 +11,9 @@ import '../../../auth/presentation/bloc/auth_event.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
 import '../../../../injection/injection_container.dart';
 import '../../../availability/domain/repositories/availability_repository.dart';
+import '../../../auth/data/datasources/auth_remote_datasource.dart';
+import '../../../ratings/data/datasources/garage_ratings_remote_datasource.dart';
+import '../../../ratings/presentation/pages/garage_reviews_page.dart';
 import '../../../settings/data/datasources/garage_settings_remote_datasource.dart';
 import 'profile_edit_page.dart';
 import 'set_availability_page.dart';
@@ -28,12 +31,15 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _notifications = true;
   int? _availabilityDaysCount;
   bool _loadingSettings = false;
+  int _reviewsCount = 0;
+  double? _averageRating;
 
   @override
   void initState() {
     super.initState();
     _loadAvailabilityDaysCount();
     _loadGarageSettings();
+    _loadRatingsSummary();
   }
 
   Future<void> _loadGarageSettings() async {
@@ -75,6 +81,23 @@ class _ProfilePageState extends State<ProfilePage> {
       if (mounted) setState(() => _availabilityDaysCount = days);
     } catch (_) {
       if (mounted) setState(() => _availabilityDaysCount = 0);
+    }
+  }
+
+  Future<void> _loadRatingsSummary() async {
+    try {
+      final response = await sl<GarageRatingsRemoteDataSource>().getMyReviews();
+      if (!mounted) return;
+      setState(() {
+        _reviewsCount = response.totalRatings;
+        _averageRating = response.totalRatings > 0 ? response.averageRating : null;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _reviewsCount = 0;
+        _averageRating = null;
+      });
     }
   }
 
@@ -130,6 +153,9 @@ class _ProfilePageState extends State<ProfilePage> {
                   phone: user.phone,
                   email: user.email,
                   address: user.address,
+                  reviewsCount: _reviewsCount,
+                  averageRating: _averageRating,
+                  onViewReviews: _openReviewsPage,
                   onEdit: () => _openProfileEdit(context, user),
                 ),
                 const SizedBox(height: AppSpacing.md),
@@ -141,6 +167,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 _SettingsCard(
                   onsiteService: _onsiteService,
                   notifications: _notifications,
+                  onChangePassword: _showChangePasswordDialog,
                   onOnsiteChanged: (v) {
                     if (_loadingSettings) return;
                     _setOnsiteServiceEnabled(v);
@@ -183,6 +210,132 @@ class _ProfilePageState extends State<ProfilePage> {
       (_) => false,
     );
   }
+
+  Future<void> _showChangePasswordDialog() async {
+    await showDialog<void>(
+      context: context,
+      builder: (_) => const _ChangePasswordDialog(),
+    );
+  }
+
+  void _openReviewsPage() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const GarageReviewsPage(),
+      ),
+    );
+  }
+}
+
+class _ChangePasswordDialog extends StatefulWidget {
+  const _ChangePasswordDialog();
+
+  @override
+  State<_ChangePasswordDialog> createState() => _ChangePasswordDialogState();
+}
+
+class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
+  final TextEditingController _currentController = TextEditingController();
+  final TextEditingController _newController = TextEditingController();
+  final TextEditingController _confirmController = TextEditingController();
+  bool _isSubmitting = false;
+
+  @override
+  void dispose() {
+    _currentController.dispose();
+    _newController.dispose();
+    _confirmController.dispose();
+    super.dispose();
+  }
+
+  void _showMessage(String text) {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger == null) return;
+    messenger.showSnackBar(SnackBar(content: Text(text)));
+  }
+
+  Future<void> _submit() async {
+    if (_isSubmitting) return;
+
+    final current = _currentController.text.trim();
+    final next = _newController.text.trim();
+    final confirm = _confirmController.text.trim();
+
+    if (current.isEmpty || next.isEmpty || confirm.isEmpty) {
+      _showMessage('Please fill all password fields.');
+      return;
+    }
+    if (next.length < 6) {
+      _showMessage('New password must be at least 6 characters.');
+      return;
+    }
+    if (next != confirm) {
+      _showMessage('New passwords do not match.');
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+    try {
+      await sl<AuthRemoteDataSource>().changePassword(
+        currentPassword: current,
+        newPassword: next,
+      );
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      _showMessage('Password changed successfully.');
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      _showMessage(toUserFriendlyMessage(e.toString()));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Change Password'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _currentController,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'Current password'),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            TextField(
+              controller: _newController,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'New password'),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            TextField(
+              controller: _confirmController,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'Confirm new password'),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: _isSubmitting ? null : _submit,
+          child: _isSubmitting
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Update'),
+        ),
+      ],
+    );
+  }
 }
 
 class _GarageInfoCard extends StatelessWidget {
@@ -190,6 +343,9 @@ class _GarageInfoCard extends StatelessWidget {
     required this.name,
     required this.phone,
     required this.email,
+    required this.reviewsCount,
+    required this.averageRating,
+    this.onViewReviews,
     this.address,
     this.onEdit,
   });
@@ -197,8 +353,17 @@ class _GarageInfoCard extends StatelessWidget {
   final String name;
   final String phone;
   final String email;
+  final int reviewsCount;
+  final double? averageRating;
+  final VoidCallback? onViewReviews;
   final String? address;
   final VoidCallback? onEdit;
+
+  String get _reviewsSummary {
+    if (reviewsCount <= 0 || averageRating == null) return 'No reviews yet';
+    final reviewsLabel = reviewsCount == 1 ? 'review' : 'reviews';
+    return '${averageRating!.toStringAsFixed(1)} ($reviewsCount $reviewsLabel)';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -249,10 +414,21 @@ class _GarageInfoCard extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      '4.8 (142 reviews)',
+                      _reviewsSummary,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: AppColors.textSecondary,
                           ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    GestureDetector(
+                      onTap: onViewReviews,
+                      child: Text(
+                        'View all reviews',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                      ),
                     ),
                   ],
                 ),
@@ -381,12 +557,14 @@ class _SettingsCard extends StatelessWidget {
   const _SettingsCard({
     required this.onsiteService,
     required this.notifications,
+    required this.onChangePassword,
     required this.onOnsiteChanged,
     required this.onNotificationsChanged,
   });
 
   final bool onsiteService;
   final bool notifications;
+  final VoidCallback onChangePassword;
   final ValueChanged<bool> onOnsiteChanged;
   final ValueChanged<bool> onNotificationsChanged;
 
@@ -430,6 +608,26 @@ class _SettingsCard extends StatelessWidget {
             subtitle: 'Receive appointment alerts',
             value: notifications,
             onChanged: onNotificationsChanged,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.lock_outline, color: AppColors.textSecondary),
+            title: Text(
+              'Change Password',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+            ),
+            subtitle: Text(
+              'Update account password',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+            ),
+            trailing: const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+            onTap: onChangePassword,
           ),
         ],
       ),

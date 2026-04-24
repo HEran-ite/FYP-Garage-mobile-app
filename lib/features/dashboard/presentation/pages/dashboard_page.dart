@@ -199,6 +199,7 @@ class _DashboardContentState extends State<_DashboardContent> {
                     _DashboardHeader(
                       garageName: garageName,
                       garageStatus: garageStatus,
+                      onOpenAppointmentTab: widget.onViewAppointments,
                     ),
                     const SizedBox(height: AppSpacing.xl),
                     _StatsGrid(state: appointmentState),
@@ -230,10 +231,12 @@ class _DashboardContentState extends State<_DashboardContent> {
 class _DashboardHeader extends StatelessWidget {
   const _DashboardHeader({
     required this.garageName,
+    this.onOpenAppointmentTab,
     this.garageStatus,
   });
 
   final String garageName;
+  final VoidCallback? onOpenAppointmentTab;
   final String? garageStatus;
 
   /// Backend AccountStatus: ACTIVE, PENDING, REJECTED, BLOCKED, WARNED
@@ -312,22 +315,24 @@ class _DashboardHeader extends StatelessWidget {
             final showBadge = state is NotificationLoaded &&
                 state.unreadCount > 0;
             return IconButton(
-              onPressed: () {
-                Navigator.of(context).pushNamed(RoutePaths.notifications);
+              onPressed: () async {
+                final result = await Navigator.of(
+                  context,
+                ).pushNamed(RoutePaths.notifications);
+                if (result == true) {
+                  onOpenAppointmentTab?.call();
+                }
               },
-              icon: showBadge
-                  ? Badge(
-                      isLabelVisible: true,
-                      smallSize: 8,
-                      child: Icon(
-                        Icons.notifications_outlined,
-                        color: AppColors.textPrimary,
-                      ),
-                    )
-                  : Icon(
-                      Icons.notifications_outlined,
-                      color: AppColors.textPrimary,
-                    ),
+              icon: Badge(
+                isLabelVisible: showBadge,
+                smallSize: 8,
+                child: Icon(
+                  Icons.notifications_outlined,
+                  color: showBadge
+                      ? AppColors.textPrimary
+                      : AppColors.textSecondary,
+                ),
+              ),
             );
           },
         ),
