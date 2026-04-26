@@ -36,4 +36,10 @@ abstract class AuthRemoteDataSource {
 
   /// Replace full services list (PUT /garages/me/services) with service names.
   Future<void> replaceGarageServices(List<String> services);
+
+  /// Change current garage password (PUT /garage/profile/change-password).
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  });
 }

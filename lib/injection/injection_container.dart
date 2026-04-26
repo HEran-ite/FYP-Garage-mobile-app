@@ -26,7 +26,11 @@ import '../features/notifications/data/datasources/notifications_remote_datasour
 import '../features/notifications/data/repositories/notifications_repository_impl.dart';
 import '../features/notifications/domain/repositories/notifications_repository.dart';
 import '../features/notifications/domain/usecases/get_notifications_usecase.dart';
+import '../features/notifications/domain/usecases/mark_all_notifications_read_usecase.dart';
+import '../features/notifications/domain/usecases/mark_notification_read_usecase.dart';
 import '../features/notifications/presentation/bloc/notification_bloc.dart';
+import '../features/ratings/data/datasources/garage_ratings_remote_datasource.dart';
+import '../features/ratings/data/datasources/garage_ratings_remote_datasource_impl.dart';
 import '../features/settings/data/datasources/garage_settings_remote_datasource.dart';
 import '../features/settings/data/datasources/garage_settings_remote_datasource_impl.dart';
 
@@ -91,12 +95,23 @@ Future<void> setupDependencyInjection() async {
   sl.registerLazySingleton<GetNotificationsUseCase>(
     () => GetNotificationsUseCase(sl()),
   );
+  sl.registerLazySingleton<MarkNotificationReadUseCase>(
+    () => MarkNotificationReadUseCase(sl()),
+  );
+  sl.registerLazySingleton<MarkAllNotificationsReadUseCase>(
+    () => MarkAllNotificationsReadUseCase(sl()),
+  );
   sl.registerFactory<NotificationBloc>(
-    () => NotificationBloc(sl()),
+    () => NotificationBloc(sl(), sl(), sl()),
   );
 
   // Garage settings (GET/PUT /garages/settings)
   sl.registerLazySingleton<GarageSettingsRemoteDataSource>(
     () => GarageSettingsRemoteDataSourceImpl(),
+  );
+
+  // Garage ratings/reviews (GET /garages/ratings)
+  sl.registerLazySingleton<GarageRatingsRemoteDataSource>(
+    () => GarageRatingsRemoteDataSourceImpl(),
   );
 }

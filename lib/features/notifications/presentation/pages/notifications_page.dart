@@ -12,10 +12,115 @@ import '../bloc/notification_state.dart';
 String _timeAgo(DateTime? dateTime) {
   if (dateTime == null) return '';
   final diff = DateTime.now().difference(dateTime);
-  if (diff.inMinutes < 60) return '${diff.inMinutes} minutes ago';
-  if (diff.inHours < 24) return '${diff.inHours} hours ago';
+  if (diff.inSeconds < 45) return 'Just now';
+  if (diff.inMinutes < 60) {
+    final mins = diff.inMinutes;
+    return mins == 1 ? '1 min ago' : '$mins mins ago';
+  }
+  if (diff.inHours < 24) {
+    final hours = diff.inHours;
+    return hours == 1 ? '1 hour ago' : '$hours hours ago';
+  }
+  if (diff.inDays == 1) return 'Yesterday';
   if (diff.inDays < 7) return '${diff.inDays} days ago';
-  return '${(diff.inDays / 7).floor()} weeks ago';
+  if (diff.inDays < 365) {
+    final m = _monthShort(dateTime.month);
+    return '$m ${dateTime.day}, ${_formatHourMinute(dateTime)}';
+  }
+  final m = _monthShort(dateTime.month);
+  return '$m ${dateTime.day}, ${dateTime.year}';
+}
+
+String _monthShort(int month) {
+  const names = <String>[
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+  return (month >= 1 && month <= 12) ? names[month - 1] : '';
+}
+
+String _formatHourMinute(DateTime dateTime) {
+  final hour24 = dateTime.hour;
+  final minute = dateTime.minute.toString().padLeft(2, '0');
+  final isPm = hour24 >= 12;
+  final hour12 = hour24 % 12 == 0 ? 12 : hour24 % 12;
+  final period = isPm ? 'PM' : 'AM';
+  return '$hour12:$minute $period';
+}
+
+String _sanitizeNotificationText(String input) {
+  var text = input.trim();
+  if (text.isEmpty) return text;
+
+  // Remove long IDs (UUID-like or long mixed ids) from user-visible text.
+  text = text.replaceAll(
+    RegExp(
+      r'\b[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}\b',
+      caseSensitive: false,
+    ),
+    '',
+  );
+  text = text.replaceAll(
+    RegExp(
+      r'\b(?:appointment|notification|service)\s*#?\s*[a-z0-9]{10,}\b',
+      caseSensitive: false,
+    ),
+    '',
+  );
+
+  // Clean punctuation/spacing left after ID removal.
+  text = text
+      .replaceAll(RegExp(r'\s{2,}'), ' ')
+      .replaceAll(RegExp(r'\s+([,.;:!?])'), r'$1')
+      .replaceAll(RegExp(r'([,.;:!?]){2,}'), r'$1')
+      .trim();
+
+  return text;
+}
+
+DateTime? _extractIsoDateTime(String input) {
+  final match = RegExp(
+    r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?',
+  ).firstMatch(input);
+  if (match == null) return null;
+  final parsed = DateTime.tryParse(match.group(0)!);
+  if (parsed == null) return null;
+  return parsed.toLocal();
+}
+
+bool _isNewAppointmentText(NotificationEntity notification) {
+  final haystack = '${notification.title} ${notification.body}'.toLowerCase();
+  return haystack.contains('new appointment request') ||
+      haystack.contains('requested an appointment');
+}
+
+String _friendlyNotificationTitle(NotificationEntity notification) {
+  if (_isNewAppointmentText(notification)) {
+    return 'New appointment request';
+  }
+  return _sanitizeNotificationText(notification.title);
+}
+
+String _friendlyNotificationBody(NotificationEntity notification) {
+  if (_isNewAppointmentText(notification)) {
+    final at = _extractIsoDateTime(notification.body);
+    if (at != null) {
+      return 'A driver requested an appointment for '
+          '${_monthShort(at.month)} ${at.day} at ${_formatHourMinute(at)}.';
+    }
+    return 'A driver requested a new appointment. Open Appointments to review it.';
+  }
+  return _sanitizeNotificationText(notification.body);
 }
 
 /// Notifications screen: fetches from GET /garages/notifications, list with unread count and "Mark all as read".
@@ -27,6 +132,31 @@ class NotificationsPage extends StatefulWidget {
 }
 
 class _NotificationsPageState extends State<NotificationsPage> {
+  bool _isAppointmentRelated(NotificationEntity notification) {
+    if (notification.type == NotificationType.newAppointmentRequest ||
+        notification.type == NotificationType.appointmentConfirmed ||
+        notification.type == NotificationType.appointmentReminder) {
+      return true;
+    }
+
+    final haystack =
+        '${notification.title} ${notification.body}'.toLowerCase();
+    return haystack.contains('appointment') ||
+        haystack.contains('service status') ||
+        haystack.contains('rescheduled') ||
+        haystack.contains('cancelled') ||
+        haystack.contains('approved') ||
+        haystack.contains('rejected');
+  }
+
+  void _handleNotificationTap(NotificationEntity notification) {
+    context.read<NotificationBloc>().add(MarkNotificationRead(notification.id));
+
+    if (_isAppointmentRelated(notification)) {
+      Navigator.of(context).pop(true);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -159,11 +289,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                 final n = list[index];
                 return _NotificationCard(
                   notification: n,
-                  onTap: () {
-                    context
-                        .read<NotificationBloc>()
-                        .add(MarkNotificationRead(n.id));
-                  },
+                  onTap: () => _handleNotificationTap(n),
                 );
               },
             );
@@ -240,7 +366,7 @@ class _NotificationCard extends StatelessWidget {
                         children: [
                           Expanded(
                             child: Text(
-                              notification.title,
+                              _friendlyNotificationTitle(notification),
                               style: Theme.of(context).textTheme.titleSmall?.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: AppColors.textPrimary,
@@ -260,7 +386,7 @@ class _NotificationCard extends StatelessWidget {
                       ),
                       const SizedBox(height: AppSpacing.xs),
                       Text(
-                        notification.body,
+                        _friendlyNotificationBody(notification),
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: AppColors.textSecondary,
                         ),

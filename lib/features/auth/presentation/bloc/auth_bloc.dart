@@ -30,6 +30,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         super(const AuthInitial()) {
     on<AuthLoginRequested>(_onLoginRequested);
     on<AuthRestoreSession>(_onRestoreSession);
+    on<AuthRefreshProfileRequested>(_onRefreshProfileRequested);
     on<AuthRegistrationStarted>(_onRegistrationStarted);
     on<AuthRegistrationStep1Next>(_onRegistrationStep1Next);
     on<AuthRegistrationStep2Next>(_onRegistrationStep2Next);
@@ -214,6 +215,26 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     if (user != null) {
       emit(AuthLoginSuccess(user));
     } else {
+      emit(const AuthInitial());
+    }
+  }
+
+  Future<void> _onRefreshProfileRequested(
+    AuthRefreshProfileRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    final previousState = state;
+    final user = await _restoreSessionUseCase();
+    if (user != null) {
+      if (previousState is AuthLoginSuccess && previousState.user == user) {
+        return;
+      }
+      emit(AuthLoginSuccess(user));
+      return;
+    }
+    if (previousState is AuthLoginSuccess ||
+        previousState is AuthProfileUpdating ||
+        previousState is AuthProfileUpdateError) {
       emit(const AuthInitial());
     }
   }

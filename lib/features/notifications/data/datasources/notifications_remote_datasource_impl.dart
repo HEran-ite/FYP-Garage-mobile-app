@@ -17,6 +17,11 @@ class NotificationsRemoteDataSourceImpl implements NotificationsRemoteDataSource
   final http.Client _client;
   String get _base => kApiBaseUrl;
 
+  Map<String, String> _authJsonHeaders(String token) => {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      };
+
   static dynamic _parseJson(String body) {
     final trimmed = body.trim();
     if (trimmed.isEmpty) return <dynamic>[];
@@ -42,10 +47,7 @@ class NotificationsRemoteDataSourceImpl implements NotificationsRemoteDataSource
     final response = await _client
         .get(
           uri,
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
+          headers: _authJsonHeaders(token),
         )
         .timeout(ApiConstants.connectionTimeout);
 
@@ -61,5 +63,51 @@ class NotificationsRemoteDataSourceImpl implements NotificationsRemoteDataSource
         .where((e) => e is Map)
         .map((e) => NotificationModel.fromJson(Map<String, dynamic>.from(e as Map)))
         .toList();
+  }
+
+  @override
+  Future<void> markNotificationRead(String notificationId) async {
+    final id = notificationId.trim();
+    if (id.isEmpty) throw const ServerException('Invalid notification id');
+
+    final token = authToken;
+    if (token == null || token.isEmpty) {
+      throw const ServerException('Not authenticated');
+    }
+
+    final uri = Uri.parse('$_base${ApiConstants.garageNotificationReadById(id)}');
+    final response = await _client
+        .patch(uri, headers: _authJsonHeaders(token))
+        .timeout(ApiConstants.connectionTimeout);
+
+    final decoded = _parseJson(response.body);
+    if (response.statusCode != 200) {
+      reportUnauthorizedHttpStatus(response.statusCode);
+      final body = decoded is Map ? decoded as Map<String, dynamic> : <String, dynamic>{};
+      final err = body['error']?.toString() ?? 'Failed to mark notification as read';
+      throw ServerException(err);
+    }
+  }
+
+  @override
+  Future<void> markAllNotificationsRead() async {
+    final token = authToken;
+    if (token == null || token.isEmpty) {
+      throw const ServerException('Not authenticated');
+    }
+
+    final uri = Uri.parse('$_base${ApiConstants.garageNotificationsReadAll}');
+    final response = await _client
+        .patch(uri, headers: _authJsonHeaders(token))
+        .timeout(ApiConstants.connectionTimeout);
+
+    final decoded = _parseJson(response.body);
+    if (response.statusCode != 200) {
+      reportUnauthorizedHttpStatus(response.statusCode);
+      final body = decoded is Map ? decoded as Map<String, dynamic> : <String, dynamic>{};
+      final err =
+          body['error']?.toString() ?? 'Failed to mark all notifications as read';
+      throw ServerException(err);
+    }
   }
 }

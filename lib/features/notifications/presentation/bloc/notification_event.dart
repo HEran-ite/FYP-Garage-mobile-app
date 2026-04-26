@@ -11,7 +11,6 @@ class LoadNotifications extends NotificationEvent {
   const LoadNotifications();
 }
 
-/// Mark a notification as read locally (backend may not have mark-as-read endpoint).
 class MarkNotificationRead extends NotificationEvent {
   const MarkNotificationRead(this.id);
 

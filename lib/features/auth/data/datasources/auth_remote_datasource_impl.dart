@@ -460,6 +460,56 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     }
   }
 
+  @override
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final token = authToken;
+    if (token == null || token.isEmpty) {
+      throw const ServerException('Not authenticated');
+    }
+
+    final uri = Uri.parse('$_base${ApiConstants.garageChangePassword}');
+    try {
+      final response = await _client
+          .put(
+            uri,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode({
+              'currentPassword': currentPassword,
+              'newPassword': newPassword,
+            }),
+          )
+          .timeout(ApiConstants.connectionTimeout);
+
+      final body = _parseJsonResponse(response.body);
+      if (response.statusCode == 200) return;
+      final err =
+          body['error'] as String? ??
+          body['errors']?.toString() ??
+          'Failed to change password';
+
+      // Backend returns 401 when current password is wrong.
+      // This must NOT invalidate the session or force logout.
+      if (response.statusCode == 401 &&
+          err.toLowerCase().contains('current password is incorrect')) {
+        throw ServerException(err);
+      }
+
+      _throwUnauthorizedIfNeeded(response.statusCode);
+      throw ServerException(err);
+    } on ServerException {
+      rethrow;
+    } catch (e) {
+      if (e is ServerException) rethrow;
+      throw NetworkException(e.toString());
+    }
+  }
+
   /// Parses response body as JSON. Throws [ServerException] if body is HTML or invalid JSON.
   static Map<String, dynamic> _parseJsonResponse(String body) {
     final trimmed = body.trim();

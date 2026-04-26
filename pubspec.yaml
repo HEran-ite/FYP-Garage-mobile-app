@@ -57,6 +57,7 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.4
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -100,3 +101,10 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "/Users/guest1/.cursor/projects/Users-guest1-Desktop-FYP-Garage-garage/assets/ChatGPT_Image_Apr_26__2026__01_44_20_PM-8bbb7a82-86a1-41df-9b9f-a3d3d9842504.png"
+  adaptive_icon_background: "#FFFFFF"
+  min_sdk_android: 21
