@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -12,6 +14,7 @@ import '../../../appointments/presentation/bloc/appointment_event.dart';
 import '../../../appointments/presentation/bloc/appointment_state.dart';
 import '../../../appointments/presentation/pages/appointment_list_page.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
+import '../../../auth/presentation/bloc/auth_event.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
 import '../../../notifications/presentation/bloc/notification_bloc.dart';
 import '../../../notifications/presentation/bloc/notification_event.dart';
@@ -39,74 +42,74 @@ class _DashboardPageState extends State<DashboardPage> {
       child: BlocProvider<AppointmentBloc>(
         create: (_) => sl<AppointmentBloc>(),
         child: Scaffold(
-        backgroundColor: AppColors.background,
-        body: _selectedIndex == 0
-            ? _DashboardContent(
-                onViewAppointments: () => setState(() => _selectedIndex = 1),
-                onUpdateAvailability: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => SetAvailabilityPage(
-                        repository: sl<AvailabilityRepository>(),
+          backgroundColor: AppColors.background,
+          body: _selectedIndex == 0
+              ? _DashboardContent(
+                  onViewAppointments: () => setState(() => _selectedIndex = 1),
+                  onUpdateAvailability: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => SetAvailabilityPage(
+                          repository: sl<AvailabilityRepository>(),
+                        ),
                       ),
+                    );
+                  },
+                )
+              : _selectedIndex == 1
+              ? const AppointmentListPage()
+              : _selectedIndex == 2
+              ? const ServiceListPage()
+              : const ProfilePage(),
+          bottomNavigationBar: Container(
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.06),
+                  blurRadius: 8,
+                  offset: const Offset(0, -2),
+                ),
+              ],
+            ),
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: AppSpacing.xs,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _NavItem(
+                      icon: Icons.dashboard_rounded,
+                      label: 'Dashboard',
+                      isSelected: _selectedIndex == 0,
+                      onTap: () => setState(() => _selectedIndex = 0),
                     ),
-                  );
-                },
-              )
-            : _selectedIndex == 1
-            ? const AppointmentListPage()
-            : _selectedIndex == 2
-            ? const ServiceListPage()
-            : const ProfilePage(),
-        bottomNavigationBar: Container(
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.06),
-                blurRadius: 8,
-                offset: const Offset(0, -2),
-              ),
-            ],
-          ),
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm,
-                vertical: AppSpacing.xs,
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _NavItem(
-                    icon: Icons.dashboard_rounded,
-                    label: 'Dashboard',
-                    isSelected: _selectedIndex == 0,
-                    onTap: () => setState(() => _selectedIndex = 0),
-                  ),
-                  _NavItem(
-                    icon: Icons.calendar_today_rounded,
-                    label: 'Appointments',
-                    isSelected: _selectedIndex == 1,
-                    onTap: () => setState(() => _selectedIndex = 1),
-                  ),
-                  _NavItem(
-                    icon: Icons.build_circle_outlined,
-                    label: 'Services',
-                    isSelected: _selectedIndex == 2,
-                    onTap: () => setState(() => _selectedIndex = 2),
-                  ),
-                  _NavItem(
-                    icon: Icons.person_outline_rounded,
-                    label: 'Profile',
-                    isSelected: _selectedIndex == 3,
-                    onTap: () => setState(() => _selectedIndex = 3),
-                  ),
-                ],
+                    _NavItem(
+                      icon: Icons.calendar_today_rounded,
+                      label: 'Appointments',
+                      isSelected: _selectedIndex == 1,
+                      onTap: () => setState(() => _selectedIndex = 1),
+                    ),
+                    _NavItem(
+                      icon: Icons.build_circle_outlined,
+                      label: 'Services',
+                      isSelected: _selectedIndex == 2,
+                      onTap: () => setState(() => _selectedIndex = 2),
+                    ),
+                    _NavItem(
+                      icon: Icons.person_outline_rounded,
+                      label: 'Profile',
+                      isSelected: _selectedIndex == 3,
+                      onTap: () => setState(() => _selectedIndex = 3),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-        ),
         ),
       ),
     );
@@ -169,11 +172,40 @@ class _DashboardContent extends StatefulWidget {
   State<_DashboardContent> createState() => _DashboardContentState();
 }
 
-class _DashboardContentState extends State<_DashboardContent> {
+class _DashboardContentState extends State<_DashboardContent>
+    with WidgetsBindingObserver {
+  static const Duration _statusRefreshInterval = Duration(seconds: 20);
+  Timer? _statusRefreshTimer;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     context.read<AppointmentBloc>().add(const LoadAppointments());
+    _refreshStatusFromBackend();
+    _statusRefreshTimer = Timer.periodic(
+      _statusRefreshInterval,
+      (_) => _refreshStatusFromBackend(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _statusRefreshTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refreshStatusFromBackend();
+    }
+  }
+
+  void _refreshStatusFromBackend() {
+    if (!mounted) return;
+    context.read<AuthBloc>().add(const AuthRefreshProfileRequested());
   }
 
   @override
@@ -290,7 +322,9 @@ class _DashboardHeader extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: statusDisplay.color.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(AppBorderRadius.full),
-                  border: Border.all(color: statusDisplay.color.withOpacity(0.4)),
+                  border: Border.all(
+                    color: statusDisplay.color.withOpacity(0.4),
+                  ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -312,8 +346,8 @@ class _DashboardHeader extends StatelessWidget {
         ),
         BlocBuilder<NotificationBloc, NotificationState>(
           builder: (context, state) {
-            final showBadge = state is NotificationLoaded &&
-                state.unreadCount > 0;
+            final showBadge =
+                state is NotificationLoaded && state.unreadCount > 0;
             return IconButton(
               onPressed: () async {
                 final result = await Navigator.of(

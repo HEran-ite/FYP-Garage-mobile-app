@@ -3,7 +3,7 @@ class ApiConstants {
   ApiConstants._();
 
   /// Fallback when API_BASE_URL is not set in .env (e.g. production URL)
-  static const String baseUrl = 'http://localhost:4000';
+  static const String baseUrl = 'https://driver-garage-backend.onrender.com';
   static const Duration connectionTimeout = Duration(seconds: 30);
   static const Duration receiveTimeout = Duration(seconds: 30);
 

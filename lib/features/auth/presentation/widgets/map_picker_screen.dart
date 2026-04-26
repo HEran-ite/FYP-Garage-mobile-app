@@ -30,6 +30,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
   late LatLng _position;
   final PlacesRemoteDataSource _places = PlacesRemoteDataSource();
   GoogleMapController? _mapController;
+  bool _myLocationEnabled = false;
 
   @override
   void initState() {
@@ -43,34 +44,96 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
   }
 
   Future<void> _initFromDeviceLocation() async {
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      _showLocationSnackBar(
+        message:
+            'Location services are turned off. Turn on device location to use your current position.',
+        actionLabel: 'Settings',
+        onAction: Geolocator.openLocationSettings,
+      );
+      return;
+    }
+
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+
+    if (permission == LocationPermission.denied) {
+      _showLocationSnackBar(
+        message:
+            'Location permission was denied. Enable it in app settings to use your current position.',
+        actionLabel: 'Settings',
+        onAction: Geolocator.openAppSettings,
+      );
+      return;
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      _showLocationSnackBar(
+        message:
+            'Location permission is permanently denied. Open app settings to allow location access.',
+        actionLabel: 'Settings',
+        onAction: Geolocator.openAppSettings,
+      );
+      return;
+    }
+
+    if (mounted) {
+      setState(() => _myLocationEnabled = true);
+    }
+
     try {
-      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) return;
-
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        return;
-      }
-
       final pos = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
         timeLimit: const Duration(seconds: 6),
       );
-      if (!mounted) return;
-      final next = LatLng(pos.latitude, pos.longitude);
-      setState(() => _position = next);
-      await _mapController?.animateCamera(
-        CameraUpdate.newCameraPosition(
-          CameraPosition(target: next, zoom: 15),
-        ),
-      );
+      await _updateMapPosition(LatLng(pos.latitude, pos.longitude));
+      return;
     } catch (_) {
-      // Keep the existing default center if we can't get device location.
+      // Fall back to last known position before keeping static defaults.
     }
+
+    try {
+      final lastKnown = await Geolocator.getLastKnownPosition();
+      if (lastKnown != null) {
+        await _updateMapPosition(LatLng(lastKnown.latitude, lastKnown.longitude));
+      }
+    } catch (_) {
+      // Keep static default center when no device position can be resolved.
+    }
+  }
+
+  Future<void> _updateMapPosition(LatLng next) async {
+    if (!mounted) return;
+    setState(() => _position = next);
+    await _mapController?.animateCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(target: next, zoom: 15),
+      ),
+    );
+  }
+
+  void _showLocationSnackBar({
+    required String message,
+    required String actionLabel,
+    required Future<bool> Function() onAction,
+  }) {
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(message),
+        action: SnackBarAction(
+          label: actionLabel,
+          onPressed: () {
+            onAction();
+          },
+        ),
+      ),
+    );
   }
 
   Future<void> _onDone() async {
@@ -230,8 +293,8 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
             onTap: (LatLng pos) {
               setState(() => _position = pos);
             },
-            myLocationEnabled: true,
-            myLocationButtonEnabled: true,
+            myLocationEnabled: _myLocationEnabled,
+            myLocationButtonEnabled: _myLocationEnabled,
             zoomControlsEnabled: true,
           ),
           Positioned(

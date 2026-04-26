@@ -112,6 +112,11 @@ class AuthRestoreSession extends AuthEvent {
   const AuthRestoreSession();
 }
 
+/// Refresh profile/session silently without emitting loading state.
+class AuthRefreshProfileRequested extends AuthEvent {
+  const AuthRefreshProfileRequested();
+}
+
 /// Clear session after expired JWT, 401/403 from API, or explicit invalidation. Root listener navigates to login.
 class AuthSessionInvalidated extends AuthEvent {
   const AuthSessionInvalidated();
