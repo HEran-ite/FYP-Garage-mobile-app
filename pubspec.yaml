@@ -105,6 +105,6 @@ flutter:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "/Users/guest1/.cursor/projects/Users-guest1-Desktop-FYP-Garage-garage/assets/ChatGPT_Image_Apr_26__2026__01_44_20_PM-8bbb7a82-86a1-41df-9b9f-a3d3d9842504.png"
+  image_path: "/Users/guest1/.cursor/projects/Users-guest1-Desktop-FYP-Garage-garage/assets/image-e2d71d46-b2c7-4db9-a84c-2971f83d3135.png"
   adaptive_icon_background: "#FFFFFF"
   min_sdk_android: 21
