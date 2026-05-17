@@ -13,6 +13,15 @@ abstract class AuthRepository {
     required String password,
   });
 
+  /// Request email OTP for garage signup only.
+  Future<Either<Failure, int?>> requestGarageSignupOtp({required String email});
+
+  /// Verify email OTP for garage signup only.
+  Future<Either<Failure, void>> verifyGarageSignupOtp({
+    required String email,
+    required String code,
+  });
+
   /// Submit full registration (after step 3).
   /// [licenseBytes] + [licenseFileName] preferred for upload (path can be null on iOS/Android).
   Future<Either<Failure, UserEntity>> register(

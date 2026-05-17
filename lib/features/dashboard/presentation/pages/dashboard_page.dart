@@ -5,6 +5,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/constants/border_radius.dart';
 import '../../../../core/constants/spacing.dart';
+import '../../../../core/locale/appointment_localization.dart';
+import '../../../../core/locale/date_localization.dart';
+import '../../../../core/locale/l10n_extension.dart';
+import '../../../../core/locale/service_localization.dart';
+import '../../../../core/locale/date_localization.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../injection/injection_container.dart';
@@ -37,6 +42,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return BlocProvider<NotificationBloc>(
       create: (_) => sl<NotificationBloc>()..add(const LoadNotifications()),
       child: BlocProvider<AppointmentBloc>(
@@ -83,25 +89,25 @@ class _DashboardPageState extends State<DashboardPage> {
                   children: [
                     _NavItem(
                       icon: Icons.dashboard_rounded,
-                      label: 'Dashboard',
+                      label: l10n.navDashboard,
                       isSelected: _selectedIndex == 0,
                       onTap: () => setState(() => _selectedIndex = 0),
                     ),
                     _NavItem(
                       icon: Icons.calendar_today_rounded,
-                      label: 'Appointments',
+                      label: l10n.navAppointments,
                       isSelected: _selectedIndex == 1,
                       onTap: () => setState(() => _selectedIndex = 1),
                     ),
                     _NavItem(
                       icon: Icons.build_circle_outlined,
-                      label: 'Services',
+                      label: l10n.navServices,
                       isSelected: _selectedIndex == 2,
                       onTap: () => setState(() => _selectedIndex = 2),
                     ),
                     _NavItem(
                       icon: Icons.person_outline_rounded,
-                      label: 'Profile',
+                      label: l10n.navProfile,
                       isSelected: _selectedIndex == 3,
                       onTap: () => setState(() => _selectedIndex = 3),
                     ),
@@ -213,9 +219,10 @@ class _DashboardContentState extends State<_DashboardContent>
     return BlocBuilder<AuthBloc, AuthState>(
       buildWhen: (_, state) => state is AuthLoginSuccess,
       builder: (context, authState) {
+        final l10n = context.l10n;
         final garageName = authState is AuthLoginSuccess
-            ? (authState.user.name.isEmpty ? 'My Garage' : authState.user.name)
-            : 'My Garage';
+            ? (authState.user.name.isEmpty ? l10n.myGarage : authState.user.name)
+            : l10n.myGarage;
         final garageStatus = authState is AuthLoginSuccess
             ? authState.user.garageStatus
             : null;
@@ -271,27 +278,26 @@ class _DashboardHeader extends StatelessWidget {
   final VoidCallback? onOpenAppointmentTab;
   final String? garageStatus;
 
-  /// Backend AccountStatus: ACTIVE, PENDING, REJECTED, BLOCKED, WARNED
-  static ({String label, Color color}) _statusDisplay(String? status) {
+  static Color _garageStatusColor(String? status) {
     switch (status?.toUpperCase()) {
       case 'ACTIVE':
-        return (label: 'Approved', color: AppColors.success);
+        return AppColors.success;
       case 'PENDING':
-        return (label: 'Pending approval', color: AppColors.warning);
-      case 'REJECTED':
-        return (label: 'Rejected', color: AppColors.error);
-      case 'BLOCKED':
-        return (label: 'Blocked', color: AppColors.error);
       case 'WARNED':
-        return (label: 'Warned', color: AppColors.warning);
+        return AppColors.warning;
+      case 'REJECTED':
+      case 'BLOCKED':
+        return AppColors.error;
       default:
-        return (label: 'Pending approval', color: AppColors.warning);
+        return AppColors.warning;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final statusDisplay = _statusDisplay(garageStatus);
+    final l10n = context.l10n;
+    final statusLabel = localizedGarageStatus(l10n, garageStatus).label;
+    final statusColor = _garageStatusColor(garageStatus);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -300,7 +306,7 @@ class _DashboardHeader extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Dashboard',
+                l10n.dashboard,
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: AppColors.textPrimary,
@@ -320,21 +326,21 @@ class _DashboardHeader extends StatelessWidget {
                   vertical: AppSpacing.xs,
                 ),
                 decoration: BoxDecoration(
-                  color: statusDisplay.color.withOpacity(0.12),
+                  color: statusColor.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(AppBorderRadius.full),
                   border: Border.all(
-                    color: statusDisplay.color.withOpacity(0.4),
+                    color: statusColor.withOpacity(0.4),
                   ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.circle, size: 8, color: statusDisplay.color),
+                    Icon(Icons.circle, size: 8, color: statusColor),
                     const SizedBox(width: AppSpacing.sm),
                     Text(
-                      statusDisplay.label,
+                      statusLabel,
                       style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: statusDisplay.color,
+                        color: statusColor,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -382,6 +388,7 @@ class _StatsGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final loaded = state is AppointmentLoaded
         ? state as AppointmentLoaded
         : null;
@@ -411,25 +418,25 @@ class _StatsGrid extends StatelessWidget {
           icon: Icons.calendar_today_rounded,
           iconColor: AppColors.info,
           value: '$all',
-          label: "Today's Appointments",
+          label: l10n.statsTodayAppointments,
         ),
         _StatCard(
           icon: Icons.info_outline_rounded,
           iconColor: AppColors.warning,
           value: '$pending',
-          label: 'Pending Requests',
+          label: l10n.statsPendingRequests,
         ),
         _StatCard(
           icon: Icons.schedule_rounded,
           iconColor: AppColors.secondary,
           value: '$inProgress',
-          label: 'In Progress',
+          label: l10n.statsInProgress,
         ),
         _StatCard(
           icon: Icons.check_circle_outline_rounded,
           iconColor: AppColors.success,
           value: '$completed',
-          label: 'Completed Today',
+          label: l10n.statsCompletedToday,
         ),
       ],
     );
@@ -514,11 +521,12 @@ class _QuickActionsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          'Quick Actions',
+          l10n.quickActions,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.bold,
             color: AppColors.textPrimary,
@@ -536,7 +544,7 @@ class _QuickActionsSection extends StatelessWidget {
             ),
             elevation: 0,
           ),
-          child: Text('View Appointment Requests ($pendingCount)'),
+          child: Text(l10n.viewAppointmentRequests(pendingCount)),
         ),
         const SizedBox(height: AppSpacing.sm),
         OutlinedButton(
@@ -549,7 +557,7 @@ class _QuickActionsSection extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppBorderRadius.md),
             ),
           ),
-          child: const Text('Update Availability'),
+          child: Text(l10n.updateAvailability),
         ),
       ],
     );
@@ -564,6 +572,7 @@ class _UpcomingAppointmentsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final list = state is AppointmentLoaded
         ? (state as AppointmentLoaded).appointments.take(3).toList()
         : <AppointmentModel>[];
@@ -576,7 +585,7 @@ class _UpcomingAppointmentsSection extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'Upcoming Appointments',
+              l10n.upcomingAppointments,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: AppColors.textPrimary,
@@ -585,7 +594,7 @@ class _UpcomingAppointmentsSection extends StatelessWidget {
             TextButton(
               onPressed: onViewAll,
               child: Text(
-                'View All',
+                l10n.viewAll,
                 style: TextStyle(
                   color: AppColors.primary,
                   fontWeight: FontWeight.w500,
@@ -613,7 +622,7 @@ class _UpcomingAppointmentsSection extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
             child: Text(
-              'No upcoming appointments',
+              l10n.noUpcomingAppointments,
               style: Theme.of(
                 context,
               ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
@@ -638,10 +647,18 @@ class _DashboardAppointmentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final isConfirmed = appointment.isApproved || appointment.isCompleted;
-    final timePart = appointment.scheduledAtDisplay.contains(',')
-        ? appointment.scheduledAtDisplay.split(',').last.trim()
-        : appointment.scheduledAtDisplay;
+    final display =
+        formatScheduledAtDisplay(l10n, appointment.scheduledAt);
+    final timePart = display.contains(',')
+        ? display.split(',').last.trim()
+        : display;
+    final serviceLabel = localizedServiceLabel(
+      l10n,
+      appointment.serviceDescription,
+    );
+    final statusLabel = localizedAppointmentStatus(l10n, appointment.status);
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -660,7 +677,7 @@ class _DashboardAppointmentCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Driver',
+            l10n.driver,
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.w600,
               color: AppColors.textPrimary,
@@ -668,7 +685,7 @@ class _DashboardAppointmentCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            appointment.serviceDescription,
+            serviceLabel,
             style: Theme.of(
               context,
             ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
@@ -686,7 +703,7 @@ class _DashboardAppointmentCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppBorderRadius.full),
             ),
             child: Text(
-              appointment.statusLabel,
+              statusLabel,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                 color: isConfirmed ? AppColors.success : AppColors.warning,
                 fontWeight: FontWeight.w500,
@@ -717,7 +734,7 @@ class _DashboardAppointmentCard extends StatelessWidget {
               const SizedBox(width: AppSpacing.xs),
               Expanded(
                 child: Text(
-                  appointment.serviceDescription,
+                  serviceLabel,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: AppColors.textSecondary,
                   ),

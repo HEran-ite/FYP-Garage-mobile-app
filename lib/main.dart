@@ -3,15 +3,19 @@ import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:google_maps_flutter_platform_interface/google_maps_flutter_platform_interface.dart';
 import 'package:google_maps_flutter_android/google_maps_flutter_android.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/auth/jwt_expiry.dart';
 import 'core/auth/session_invalidation.dart';
+import 'core/locale/app_locale_scope.dart';
+import 'core/locale/locale_service.dart';
 import 'core/routing/app_router.dart';
 import 'core/routing/route_paths.dart';
 import 'core/theme/app_theme.dart';
+import 'l10n/app_localizations.dart';
 import 'features/auth/data/datasources/auth_session_storage.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
 import 'features/auth/presentation/bloc/auth_event.dart';
@@ -44,46 +48,87 @@ void main() async {
 
   await setupDependencyInjection();
   final prefs = await SharedPreferences.getInstance();
+  final localeService = LocaleService(prefs);
   final hasSeenOnboarding = prefs.getBool(OnboardingPage.seenKey) ?? false;
 
-  runApp(GarageUpApp(showOnboarding: !hasSeenOnboarding));
+  runApp(GarageUpApp(
+    localeService: localeService,
+    initialRoute:
+        hasSeenOnboarding ? RoutePaths.login : RoutePaths.onboarding,
+  ));
 }
 
-class GarageUpApp extends StatelessWidget {
-  const GarageUpApp({super.key, required this.showOnboarding});
+class GarageUpApp extends StatefulWidget {
+  const GarageUpApp({
+    super.key,
+    required this.localeService,
+    required this.initialRoute,
+  });
 
-  final bool showOnboarding;
+  final LocaleService localeService;
+  final String initialRoute;
+
+  @override
+  State<GarageUpApp> createState() => _GarageUpAppState();
+}
+
+class _GarageUpAppState extends State<GarageUpApp> {
+  late Locale _locale;
+
+  @override
+  void initState() {
+    super.initState();
+    _locale = resolveInitialLocale(widget.localeService);
+  }
+
+  Future<void> _setLocale(Locale locale) async {
+    await widget.localeService.setLocale(locale);
+    if (!mounted) return;
+    setState(() => _locale = locale);
+  }
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider<AuthBloc>(
-      create: (_) => sl<AuthBloc>(),
-      child: _AuthRestoreWrapper(
-        child: _AuthSessionShell(
-          child: BlocListener<AuthBloc, AuthState>(
-            listenWhen: (prev, curr) =>
-                curr is AuthInitial && _hadAuthenticatedSession(prev),
-            listener: (context, state) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                final nav = appNavigatorKey.currentState;
-                if (nav == null) return;
-                nav.pushAndRemoveUntil(
-                  MaterialPageRoute<void>(
-                    settings: const RouteSettings(name: RoutePaths.login),
-                    builder: (_) => const LoginPage(),
-                  ),
-                  (_) => false,
-                );
-              });
-            },
-            child: MaterialApp(
-              navigatorKey: appNavigatorKey,
-              title: 'Garage Owner',
-              theme: AppTheme.lightTheme,
-              darkTheme: AppTheme.darkTheme,
-              onGenerateRoute: AppRouter.onGenerateRoute,
-              initialRoute: showOnboarding ? RoutePaths.onboarding : RoutePaths.login,
-              debugShowCheckedModeBanner: false,
+    return AppLocaleScope(
+      locale: _locale,
+      setLocale: _setLocale,
+      child: BlocProvider<AuthBloc>(
+        create: (_) => sl<AuthBloc>(),
+        child: _AuthRestoreWrapper(
+          child: _AuthSessionShell(
+            child: BlocListener<AuthBloc, AuthState>(
+              listenWhen: (prev, curr) =>
+                  curr is AuthInitial && _hadAuthenticatedSession(prev),
+              listener: (context, state) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  final nav = appNavigatorKey.currentState;
+                  if (nav == null) return;
+                  nav.pushAndRemoveUntil(
+                    MaterialPageRoute<void>(
+                      settings: const RouteSettings(name: RoutePaths.login),
+                      builder: (_) => const LoginPage(),
+                    ),
+                    (_) => false,
+                  );
+                });
+              },
+              child: MaterialApp(
+                navigatorKey: appNavigatorKey,
+                title: 'CarCare',
+                theme: AppTheme.lightTheme,
+                darkTheme: AppTheme.darkTheme,
+                locale: _locale,
+                supportedLocales: LocaleService.supportedLocales,
+                localizationsDelegates: const [
+                  AppLocalizations.delegate,
+                  GlobalMaterialLocalizations.delegate,
+                  GlobalWidgetsLocalizations.delegate,
+                  GlobalCupertinoLocalizations.delegate,
+                ],
+                onGenerateRoute: AppRouter.onGenerateRoute,
+                initialRoute: widget.initialRoute,
+                debugShowCheckedModeBanner: false,
+              ),
             ),
           ),
         ),

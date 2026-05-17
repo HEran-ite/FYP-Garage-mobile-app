@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 
@@ -28,6 +30,8 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
   final http.Client _client;
   String get _base => kApiBaseUrl;
+  /// Garage OTP can need extra time when the host is cold (e.g. Render spin-up).
+  static const Duration _otpTimeout = Duration(seconds: 180);
 
   void _throwUnauthorizedIfNeeded(int statusCode) {
     if (statusCode == 401 || statusCode == 403) {
@@ -76,6 +80,111 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       throw ServerException(err);
     } on ServerException {
       rethrow;
+    } catch (e) {
+      if (e is ServerException) rethrow;
+      throw NetworkException(e.toString());
+    }
+  }
+
+  @override
+  Future<int?> requestGarageSignupOtp({required String email}) async {
+    if (kDebugMode) {
+      debugPrint(
+        '[OTP] API_BASE_URL effective base: $_base '
+        '(request-otp → $_base${ApiConstants.garageAuthRequestOtp})',
+      );
+    }
+    Future<http.Response> request(String path) {
+      final uri = Uri.parse('$_base$path');
+      return _client
+          .post(
+            uri,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'email': email}),
+          )
+          .timeout(_otpTimeout);
+    }
+
+    final endpoints = <String>[
+      ApiConstants.garageAuthRequestOtp,
+      ApiConstants.garageAuthSendOtpLegacy,
+    ];
+    ServerException? lastServerError;
+    for (final endpoint in endpoints) {
+      try {
+        final response = await request(endpoint);
+        final body = _parseJsonResponse(response.body);
+        if (response.statusCode == 200) {
+          final minutes = body['expiresInMinutes'];
+          if (minutes is int) return minutes;
+          if (minutes is num) return minutes.toInt();
+          return null;
+        }
+        var err = body['error'] as String? ?? 'Failed to request OTP';
+        if (err.trim().toLowerCase() ==
+            'something went wrong. please try again.') {
+          err =
+              'OTP request failed (${response.statusCode}) on $endpoint. '
+              'Backend returned a generic error. Check backend logs and SMTP/DB migration config.';
+        }
+        // If one endpoint is unavailable in this deployment, try the other one.
+        if (response.statusCode == 404 ||
+            response.statusCode == 405 ||
+            response.statusCode == 501) {
+          lastServerError = ServerException(err);
+          continue;
+        }
+        throw ServerException(err);
+      } on NetworkException {
+        rethrow;
+      } on TimeoutException {
+        throw const NetworkException(
+          'OTP request timed out. Backend may be cold starting. '
+          'Please wait a few seconds and try again.',
+        );
+      } on ServerException catch (e) {
+        lastServerError = e;
+      } catch (e) {
+        throw NetworkException(e.toString());
+      }
+    }
+    throw lastServerError ?? const ServerException('Failed to request OTP');
+  }
+
+  @override
+  Future<void> verifyGarageSignupOtp({
+    required String email,
+    required String code,
+  }) async {
+    final uri = Uri.parse('$_base${ApiConstants.garageAuthVerifyOtp}');
+    try {
+      final response = await _client
+          .post(
+            uri,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'email': email, 'code': code}),
+          )
+          .timeout(_otpTimeout);
+      final body = _parseJsonResponse(response.body);
+      if (response.statusCode == 200 &&
+          (body['verified'] == true || body.isEmpty)) {
+        return;
+      }
+      var err = body['error'] as String? ?? 'OTP verification failed';
+      if (err.trim().toLowerCase() ==
+          'something went wrong. please try again.') {
+        err =
+            'OTP verification failed (${response.statusCode}). '
+            'Backend returned a generic error. Check backend logs.';
+      }
+      throw ServerException(err);
+    } on ServerException {
+      rethrow;
+    } on TimeoutException {
+      throw const NetworkException(
+        'OTP verification timed out. Backend may be cold starting. '
+        'Please wait a few seconds and try again.',
+      );
     } catch (e) {
       if (e is ServerException) rethrow;
       throw NetworkException(e.toString());
@@ -132,8 +241,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     }
     if (registration.otherServices != null &&
         registration.otherServices!.trim().isNotEmpty) {
-      for (final part
-          in registration.otherServices!.split(RegExp(r',\s*'))) {
+      for (final part in registration.otherServices!.split(RegExp(r',\s*'))) {
         addName(part);
       }
     }
@@ -323,10 +431,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     }
     try {
       final response = await _client
-          .get(
-            uri,
-            headers: {'Authorization': 'Bearer $token'},
-          )
+          .get(uri, headers: {'Authorization': 'Bearer $token'})
           .timeout(ApiConstants.connectionTimeout);
       if (response.statusCode != 200) {
         _throwUnauthorizedIfNeeded(response.statusCode);
@@ -341,10 +446,15 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       final list = decoded is List
           ? List<dynamic>.from(decoded)
           : (decoded is Map
-              ? (decoded['services'] as List? ?? decoded['data'] as List? ?? [])
-              : <dynamic>[]);
+                ? (decoded['services'] as List? ??
+                      decoded['data'] as List? ??
+                      [])
+                : <dynamic>[]);
       return list
-          .map((e) => GarageServiceItem.fromJson(Map<String, dynamic>.from(e as Map)))
+          .map(
+            (e) =>
+                GarageServiceItem.fromJson(Map<String, dynamic>.from(e as Map)),
+          )
           .toList();
     } on ServerException {
       rethrow;
@@ -374,8 +484,11 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
           .timeout(ApiConstants.connectionTimeout);
       final body = _parseJsonResponse(response.body);
       if (response.statusCode == 201 || response.statusCode == 200) {
-        final map = body.isNotEmpty ? body : (body['service'] as Map<String, dynamic>? ?? {});
-        if (map.isEmpty) throw ServerException('Invalid create service response');
+        final map = body.isNotEmpty
+            ? body
+            : (body['service'] as Map<String, dynamic>? ?? {});
+        if (map.isEmpty)
+          throw ServerException('Invalid create service response');
         return GarageServiceItem.fromJson(Map<String, dynamic>.from(map));
       }
       _throwUnauthorizedIfNeeded(response.statusCode);
@@ -394,17 +507,16 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
   @override
   Future<void> deleteGarageService(String serviceId) async {
-    final uri = Uri.parse('$_base${ApiConstants.garageMeServiceById(serviceId)}');
+    final uri = Uri.parse(
+      '$_base${ApiConstants.garageMeServiceById(serviceId)}',
+    );
     final token = authToken;
     if (token == null || token.isEmpty) {
       throw const ServerException('Not authenticated');
     }
     try {
       final response = await _client
-          .delete(
-            uri,
-            headers: {'Authorization': 'Bearer $token'},
-          )
+          .delete(uri, headers: {'Authorization': 'Bearer $token'})
           .timeout(ApiConstants.connectionTimeout);
       if (response.statusCode == 204 || response.statusCode == 200) return;
       _throwUnauthorizedIfNeeded(response.statusCode);
@@ -429,9 +541,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     if (token == null || token.isEmpty) {
       throw const ServerException('Not authenticated');
     }
-    final body = <String, dynamic>{
-      'services': services,
-    };
+    final body = <String, dynamic>{'services': services};
     try {
       final response = await _client
           .put(

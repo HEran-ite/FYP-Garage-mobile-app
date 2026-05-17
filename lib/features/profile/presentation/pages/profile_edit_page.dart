@@ -5,6 +5,7 @@ import '../../../../core/constants/auth_constants.dart';
 import '../../../../core/constants/border_radius.dart';
 import '../../../../core/constants/spacing.dart';
 import '../../../../core/error/user_friendly_errors.dart';
+import '../../../../core/locale/l10n_extension.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/domain/entities/user_entity.dart';
 import '../../../auth/data/models/user_model.dart';
@@ -58,24 +59,25 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   }
 
   void _save() {
+    final l10n = context.l10n;
     final name = _nameController.text.trim();
     final phone = _phoneController.text.trim();
     final email = _emailController.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Garage name is required')),
+        SnackBar(content: Text(l10n.garageNameRequired)),
       );
       return;
     }
     if (email.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Email is required')),
+        SnackBar(content: Text(l10n.emailRequired)),
       );
       return;
     }
     if (phone.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Phone is required')),
+        SnackBar(content: Text(l10n.required)),
       );
       return;
     }
@@ -102,18 +104,23 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is AuthProfileUpdateError) {
           setState(() => _isSaving = false);
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(toUserFriendlyMessage(state.message))),
+            SnackBar(
+              content: Text(
+                toUserFriendlyMessage(state.message, context.l10n),
+              ),
+            ),
           );
         } else if (state is AuthLoginSuccess && _isSaving) {
           setState(() => _isSaving = false);
           Navigator.of(context).pop();
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Profile saved')),
+            SnackBar(content: Text(context.l10n.profileSaved)),
           );
         }
       },
@@ -127,7 +134,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          'Edit Profile',
+          l10n.editProfile,
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: AppColors.textPrimary,
@@ -141,7 +148,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
           children: [
             const SizedBox(height: AppSpacing.lg),
             Text(
-              'Garage information',
+              l10n.garageInformation,
               style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: AppColors.textSecondary,
@@ -149,27 +156,27 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
             ),
             const SizedBox(height: AppSpacing.sm),
             AuthTextField(
-              label: 'Garage name',
+              label: l10n.garageName,
               controller: _nameController,
-              hint: 'AutoCare Garage',
+              hint: l10n.garageNameHint,
             ),
             const SizedBox(height: AppSpacing.md),
             AuthTextField(
-              label: 'Phone',
+              label: l10n.phone,
               controller: _phoneController,
-              hint: AuthConstants.phonePlaceholder,
+              hint: l10n.phonePlaceholder,
               keyboardType: TextInputType.phone,
             ),
             const SizedBox(height: AppSpacing.md),
             AuthTextField(
-              label: 'Email',
+              label: l10n.email,
               controller: _emailController,
-              hint: 'contact@garage.com',
+              hint: l10n.emailHintGarage,
               keyboardType: TextInputType.emailAddress,
             ),
             const SizedBox(height: AppSpacing.xl),
             Text(
-              'Location',
+              l10n.location,
               style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: AppColors.textSecondary,
@@ -177,7 +184,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
             ),
             const SizedBox(height: AppSpacing.sm),
             LocationPickerField(
-              label: 'Garage address',
+              label: l10n.garageAddressHint,
               controller: _addressController,
               initialLat: _pickedLat,
               initialLng: _pickedLng,
@@ -208,7 +215,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                       width: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Save'),
+                  : Text(l10n.save),
             ),
             const SizedBox(height: AppSpacing.xxl),
           ],

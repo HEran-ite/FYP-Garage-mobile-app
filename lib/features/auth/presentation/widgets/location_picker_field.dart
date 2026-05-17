@@ -6,6 +6,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../../../core/constants/auth_constants.dart';
 import '../../../../core/constants/border_radius.dart';
 import '../../../../core/constants/spacing.dart';
+import '../../../../core/locale/l10n_extension.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../data/datasources/places_remote_datasource.dart';
 import 'map_picker_screen.dart';
@@ -168,6 +169,7 @@ class _LocationPickerFieldState extends State<LocationPickerField> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
@@ -184,7 +186,7 @@ class _LocationPickerFieldState extends State<LocationPickerField> {
           controller: widget.controller,
           onChanged: _onTextChanged,
           decoration: InputDecoration(
-            hintText: 'Search address or enter manually',
+            hintText: l10n.searchAddress,
             hintStyle: TextStyle(color: AppColors.inputIcon),
             prefixIcon: const Icon(
               Icons.location_on_outlined,
@@ -306,14 +308,14 @@ class _LocationPickerFieldState extends State<LocationPickerField> {
                               ),
                               const SizedBox(height: AppSpacing.sm),
                               Text(
-                                AuthConstants.mapPreviewLabel,
+                                l10n.mapPreview,
                                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                       color: AppColors.textSecondary,
                                     ),
                               ),
                               const SizedBox(height: AppSpacing.xs),
                               Text(
-                                AuthConstants.mapTapToSetHint,
+                                l10n.mapTapToSet,
                                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                       color: AppColors.textSecondary,
                                       fontSize: 12,

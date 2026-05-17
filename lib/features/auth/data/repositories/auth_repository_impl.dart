@@ -53,6 +53,41 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<Either<Failure, int?>> requestGarageSignupOtp({
+    required String email,
+  }) async {
+    try {
+      final expiresInMinutes = await _remoteDataSource.requestGarageSignupOtp(
+        email: email,
+      );
+      return Right(expiresInMinutes);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(e.message));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> verifyGarageSignupOtp({
+    required String email,
+    required String code,
+  }) async {
+    try {
+      await _remoteDataSource.verifyGarageSignupOtp(email: email, code: code);
+      return const Right(null);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(e.message));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
   Future<Either<Failure, UserEntity>> register(
     RegistrationEntity registration, {
     Uint8List? licenseBytes,
@@ -179,8 +214,9 @@ class AuthRepositoryImpl implements AuthRepository {
       final customNames = names
           .where((n) => !AuthConstants.serviceOptionsPredefined.contains(n))
           .toList();
-      final otherServicesStr =
-          customNames.isEmpty ? null : customNames.join(', ');
+      final otherServicesStr = customNames.isEmpty
+          ? null
+          : customNames.join(', ');
 
       final updatedUser = UserModel(
         id: currentUser.id,

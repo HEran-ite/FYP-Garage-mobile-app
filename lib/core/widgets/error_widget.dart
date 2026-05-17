@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../locale/l10n_extension.dart';
+
 /// Reusable error display widget
 class ErrorDisplayWidget extends StatelessWidget {
   final String message;
@@ -24,7 +26,7 @@ class ErrorDisplayWidget extends StatelessWidget {
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: onRetry,
-              child: const Text('Retry'),
+              child: Text(context.l10n.retry),
             ),
           ],
         ],

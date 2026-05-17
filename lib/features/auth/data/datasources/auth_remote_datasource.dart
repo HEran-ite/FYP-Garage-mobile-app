@@ -12,6 +12,11 @@ abstract class AuthRemoteDataSource {
   void clearAuthToken();
 
   Future<UserModel> login({required String email, required String password});
+  Future<int?> requestGarageSignupOtp({required String email});
+  Future<void> verifyGarageSignupOtp({
+    required String email,
+    required String code,
+  });
   Future<UserModel> register(
     RegistrationModel registration, {
     Uint8List? licenseBytes,

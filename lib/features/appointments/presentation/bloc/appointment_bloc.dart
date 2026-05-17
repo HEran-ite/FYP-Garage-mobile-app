@@ -1,6 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../core/error/user_friendly_errors.dart';
 import '../../domain/repositories/appointments_repository.dart';
 import 'appointment_event.dart';
 import 'appointment_state.dart';
@@ -37,7 +36,7 @@ class AppointmentBloc extends Bloc<AppointmentEvent, AppointmentState> {
         searchQuery: query,
       ));
     } catch (e) {
-      emit(AppointmentError(toUserFriendlyMessage(e.toString())));
+      emit(AppointmentError(e.toString()));
     }
   }
 
@@ -76,7 +75,7 @@ class AppointmentBloc extends Bloc<AppointmentEvent, AppointmentState> {
         filter: current.filter,
         searchQuery: current.searchQuery,
       ));
-      emit(AppointmentError(toUserFriendlyMessage(e.toString())));
+      emit(AppointmentError(e.toString()));
     }
   }
 
@@ -101,7 +100,7 @@ class AppointmentBloc extends Bloc<AppointmentEvent, AppointmentState> {
         filter: current.filter,
         searchQuery: current.searchQuery,
       ));
-      emit(AppointmentError(toUserFriendlyMessage(e.toString())));
+      emit(AppointmentError(e.toString()));
     }
   }
 
@@ -126,7 +125,7 @@ class AppointmentBloc extends Bloc<AppointmentEvent, AppointmentState> {
         filter: current.filter,
         searchQuery: current.searchQuery,
       ));
-      emit(AppointmentError(toUserFriendlyMessage(e.toString())));
+      emit(AppointmentError(e.toString()));
     }
   }
 
@@ -151,7 +150,7 @@ class AppointmentBloc extends Bloc<AppointmentEvent, AppointmentState> {
         filter: current.filter,
         searchQuery: current.searchQuery,
       ));
-      emit(AppointmentError(toUserFriendlyMessage(e.toString())));
+      emit(AppointmentError(e.toString()));
     }
   }
 
@@ -176,7 +175,7 @@ class AppointmentBloc extends Bloc<AppointmentEvent, AppointmentState> {
         filter: current.filter,
         searchQuery: current.searchQuery,
       ));
-      emit(AppointmentError(toUserFriendlyMessage(e.toString())));
+      emit(AppointmentError(e.toString()));
     }
   }
 }

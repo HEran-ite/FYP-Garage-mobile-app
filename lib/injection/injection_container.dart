@@ -20,6 +20,8 @@ import '../features/auth/domain/usecases/register_usecase.dart';
 import '../features/auth/domain/usecases/restore_session_usecase.dart';
 import '../features/auth/domain/usecases/update_garage_services_usecase.dart';
 import '../features/auth/domain/usecases/update_profile_usecase.dart';
+import '../features/auth/domain/usecases/request_garage_signup_otp_usecase.dart';
+import '../features/auth/domain/usecases/verify_garage_signup_otp_usecase.dart';
 import '../features/auth/presentation/bloc/auth_bloc.dart';
 import '../features/notifications/data/datasources/notifications_remote_datasource.dart';
 import '../features/notifications/data/datasources/notifications_remote_datasource_impl.dart';
@@ -47,17 +49,31 @@ Future<void> setupDependencyInjection() async {
     () => AuthRepositoryImpl(sl(), sl()),
   );
   sl.registerLazySingleton<LoginUseCase>(() => LoginUseCase(sl()));
+  sl.registerLazySingleton<RequestGarageSignupOtpUseCase>(
+    () => RequestGarageSignupOtpUseCase(sl()),
+  );
+  sl.registerLazySingleton<VerifyGarageSignupOtpUseCase>(
+    () => VerifyGarageSignupOtpUseCase(sl()),
+  );
   sl.registerLazySingleton<RegisterUseCase>(() => RegisterUseCase(sl()));
-  sl.registerLazySingleton<UpdateProfileUseCase>(() => UpdateProfileUseCase(sl()));
+  sl.registerLazySingleton<UpdateProfileUseCase>(
+    () => UpdateProfileUseCase(sl()),
+  );
   sl.registerLazySingleton<UpdateGarageServicesUseCase>(
     () => UpdateGarageServicesUseCase(sl()),
   );
-  sl.registerLazySingleton<RestoreSessionUseCase>(() => RestoreSessionUseCase(sl()));
-  sl.registerLazySingleton<ClearSessionUseCase>(() => ClearSessionUseCase(sl()));
+  sl.registerLazySingleton<RestoreSessionUseCase>(
+    () => RestoreSessionUseCase(sl()),
+  );
+  sl.registerLazySingleton<ClearSessionUseCase>(
+    () => ClearSessionUseCase(sl()),
+  );
   // Singleton so auth state is preserved across widget rebuilds (avoids "Please sign in" after a few minutes).
   sl.registerLazySingleton<AuthBloc>(
     () => AuthBloc(
       loginUseCase: sl(),
+      requestGarageSignupOtpUseCase: sl(),
+      verifyGarageSignupOtpUseCase: sl(),
       registerUseCase: sl(),
       updateProfileUseCase: sl(),
       updateGarageServicesUseCase: sl(),
@@ -73,9 +89,7 @@ Future<void> setupDependencyInjection() async {
   sl.registerLazySingleton<AppointmentsRepository>(
     () => AppointmentsRepositoryImpl(sl()),
   );
-  sl.registerFactory<AppointmentBloc>(
-    () => AppointmentBloc(sl()),
-  );
+  sl.registerFactory<AppointmentBloc>(() => AppointmentBloc(sl()));
 
   // Availability (garage time slots)
   sl.registerLazySingleton<AvailabilityRemoteDataSource>(

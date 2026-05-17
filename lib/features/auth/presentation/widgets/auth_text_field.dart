@@ -19,6 +19,7 @@ class AuthTextField extends StatefulWidget {
     this.validator,
     this.maxLength,
     this.autofillHints,
+    this.onCard = false,
   });
 
   final String label;
@@ -32,6 +33,9 @@ class AuthTextField extends StatefulWidget {
   final FormFieldValidator<String>? validator;
   final int? maxLength;
   final Iterable<String>? autofillHints;
+
+  /// White fill when fields sit on the auth form card.
+  final bool onCard;
 
   @override
   State<AuthTextField> createState() => _AuthTextFieldState();
@@ -62,8 +66,8 @@ class _AuthTextFieldState extends State<AuthTextField> {
       children: [
         Text(
           widget.label,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.textPrimary,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppColors.textSecondary,
                 fontWeight: FontWeight.w500,
               ),
         ),
@@ -92,18 +96,18 @@ class _AuthTextFieldState extends State<AuthTextField> {
                   )
                 : null,
             filled: true,
-            fillColor: AppColors.inputFill,
+            fillColor: widget.onCard ? AppColors.surface : AppColors.inputFill,
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppBorderRadius.md),
+              borderRadius: BorderRadius.circular(AppBorderRadius.lg),
               borderSide: const BorderSide(color: AppColors.inputBorder, width: 1),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppBorderRadius.md),
+              borderRadius: BorderRadius.circular(AppBorderRadius.lg),
               borderSide: const BorderSide(color: AppColors.inputBorder, width: 1),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppBorderRadius.md),
-              borderSide: const BorderSide(color: AppColors.primary, width: 2),
+              borderRadius: BorderRadius.circular(AppBorderRadius.lg),
+              borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
             ),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.md,

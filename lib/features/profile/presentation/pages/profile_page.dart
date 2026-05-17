@@ -4,8 +4,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/constants/border_radius.dart';
 import '../../../../core/constants/spacing.dart';
 import '../../../../core/error/user_friendly_errors.dart';
+import '../../../../core/locale/l10n_extension.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/language_selector_tile.dart';
 import '../../../../core/routing/route_paths.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_event.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
@@ -69,7 +72,9 @@ class _ProfilePageState extends State<ProfilePage> {
       if (!mounted) return;
       setState(() => _onsiteService = prev);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(toUserFriendlyMessage(e.toString()))),
+        SnackBar(
+          content: Text(toUserFriendlyMessage(e.toString(), context.l10n)),
+        ),
       );
     }
   }
@@ -124,8 +129,9 @@ class _ProfilePageState extends State<ProfilePage> {
                     ? state.user
                     : null;
         if (user == null) {
-          return const Center(child: Text('Please sign in'));
+          return Center(child: Text(context.l10n.pleaseSignIn));
         }
+        final l10n = context.l10n;
         return SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
@@ -134,7 +140,7 @@ class _ProfilePageState extends State<ProfilePage> {
               children: [
                 const SizedBox(height: AppSpacing.lg),
                 Text(
-                  'Profile & Settings',
+                  l10n.profileAndSettings,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: AppColors.textPrimary,
@@ -142,7 +148,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  'Manage your garage information',
+                  l10n.manageGarageInfo,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: AppColors.textSecondary,
                       ),
@@ -261,16 +267,17 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
     final next = _newController.text.trim();
     final confirm = _confirmController.text.trim();
 
+    final l10n = context.l10n;
     if (current.isEmpty || next.isEmpty || confirm.isEmpty) {
-      _showMessage('Please fill all password fields.');
+      _showMessage(l10n.fillAllPasswordFields);
       return;
     }
     if (next.length < 6) {
-      _showMessage('New password must be at least 6 characters.');
+      _showMessage(l10n.passwordMin6);
       return;
     }
     if (next != confirm) {
-      _showMessage('New passwords do not match.');
+      _showMessage(l10n.passwordsMismatch);
       return;
     }
 
@@ -282,18 +289,19 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
       );
       if (!mounted) return;
       Navigator.of(context).pop();
-      _showMessage('Password changed successfully.');
+      _showMessage(context.l10n.passwordChangedSuccess);
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
-      _showMessage(toUserFriendlyMessage(e.toString()));
+      _showMessage(toUserFriendlyMessage(e.toString(), context.l10n));
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return AlertDialog(
-      title: const Text('Change Password'),
+      title: Text(l10n.changePassword),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -301,19 +309,19 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
             TextField(
               controller: _currentController,
               obscureText: true,
-              decoration: const InputDecoration(labelText: 'Current password'),
+              decoration: InputDecoration(labelText: l10n.currentPassword),
             ),
             const SizedBox(height: AppSpacing.sm),
             TextField(
               controller: _newController,
               obscureText: true,
-              decoration: const InputDecoration(labelText: 'New password'),
+              decoration: InputDecoration(labelText: l10n.newPassword),
             ),
             const SizedBox(height: AppSpacing.sm),
             TextField(
               controller: _confirmController,
               obscureText: true,
-              decoration: const InputDecoration(labelText: 'Confirm new password'),
+              decoration: InputDecoration(labelText: l10n.confirmNewPassword),
             ),
           ],
         ),
@@ -321,7 +329,7 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
       actions: [
         TextButton(
           onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          child: Text(l10n.cancel),
         ),
         FilledButton(
           onPressed: _isSubmitting ? null : _submit,
@@ -331,7 +339,7 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
                   height: 16,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Text('Update'),
+              : Text(l10n.update),
         ),
       ],
     );
@@ -359,14 +367,17 @@ class _GarageInfoCard extends StatelessWidget {
   final String? address;
   final VoidCallback? onEdit;
 
-  String get _reviewsSummary {
-    if (reviewsCount <= 0 || averageRating == null) return 'No reviews yet';
-    final reviewsLabel = reviewsCount == 1 ? 'review' : 'reviews';
-    return '${averageRating!.toStringAsFixed(1)} ($reviewsCount $reviewsLabel)';
+  String _reviewsSummary(AppLocalizations l10n) {
+    if (reviewsCount <= 0 || averageRating == null) return l10n.noReviewsYet;
+    return l10n.ratingReviews(
+      averageRating!.toStringAsFixed(1),
+      reviewsCount,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
@@ -406,7 +417,7 @@ class _GarageInfoCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      name.isEmpty ? 'Garage' : name,
+                      name.isEmpty ? l10n.garage : name,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w700,
                             color: AppColors.textPrimary,
@@ -414,7 +425,7 @@ class _GarageInfoCard extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      _reviewsSummary,
+                      _reviewsSummary(l10n),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: AppColors.textSecondary,
                           ),
@@ -423,7 +434,7 @@ class _GarageInfoCard extends StatelessWidget {
                     GestureDetector(
                       onTap: onViewReviews,
                       child: Text(
-                        'View all reviews',
+                        l10n.viewAllReviews,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: AppColors.primary,
                               fontWeight: FontWeight.w600,
@@ -440,15 +451,19 @@ class _GarageInfoCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          _InfoRow(icon: Icons.phone_outlined, text: phone.isEmpty ? '—' : phone),
+          _InfoRow(
+            icon: Icons.phone_outlined,
+            text: phone.isEmpty ? l10n.emDash : phone,
+          ),
           const SizedBox(height: AppSpacing.xs),
-          _InfoRow(icon: Icons.email_outlined, text: email.isEmpty ? '—' : email),
+          _InfoRow(
+            icon: Icons.email_outlined,
+            text: email.isEmpty ? l10n.emDash : email,
+          ),
           const SizedBox(height: AppSpacing.xs),
           _InfoRow(
             icon: Icons.location_on_outlined,
-            text: address?.isNotEmpty == true
-                ? address!
-                : 'Tap edit to set address',
+            text: address?.isNotEmpty == true ? address! : l10n.tapEditAddress,
           ),
         ],
       ),
@@ -493,15 +508,16 @@ class _AvailabilityCard extends StatelessWidget {
 
   final VoidCallback? onTap;
 
-  String get _subtitle {
-    if (openDaysCount == null) return 'Loading...';
-    if (openDaysCount! == 0) return 'No availability set';
-    if (openDaysCount! == 1) return 'Open 1 day a week';
-    return 'Open $openDaysCount days a week';
+  String _subtitle(AppLocalizations l10n) {
+    if (openDaysCount == null) return l10n.loading;
+    if (openDaysCount! == 0) return l10n.noAvailabilitySet;
+    if (openDaysCount! == 1) return l10n.openOneDayWeek;
+    return l10n.openDaysWeek(openDaysCount!);
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
@@ -525,7 +541,7 @@ class _AvailabilityCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Availability',
+                      l10n.availability,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w700,
                             color: AppColors.textPrimary,
@@ -533,7 +549,7 @@ class _AvailabilityCard extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      _subtitle,
+                      _subtitle(l10n),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: AppColors.textSecondary,
                           ),
@@ -570,6 +586,7 @@ class _SettingsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
@@ -587,7 +604,7 @@ class _SettingsCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Settings',
+            l10n.settings,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
                   color: AppColors.textPrimary,
@@ -596,32 +613,34 @@ class _SettingsCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
           _SettingRow(
             icon: Icons.location_on_outlined,
-            title: 'Onsite Service',
-            subtitle: 'Offer services at customer location',
+            title: l10n.onsiteService,
+            subtitle: l10n.onsiteServiceSubtitle,
             value: onsiteService,
             onChanged: onOnsiteChanged,
           ),
           const SizedBox(height: AppSpacing.sm),
           _SettingRow(
             icon: Icons.notifications_outlined,
-            title: 'Notifications',
-            subtitle: 'Receive appointment alerts',
+            title: l10n.notifications,
+            subtitle: l10n.notificationsSubtitle,
             value: notifications,
             onChanged: onNotificationsChanged,
           ),
+          const SizedBox(height: AppSpacing.sm),
+          const LanguageSelectorTile(),
           const SizedBox(height: AppSpacing.sm),
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.lock_outline, color: AppColors.textSecondary),
             title: Text(
-              'Change Password',
+              l10n.changePassword,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: AppColors.textPrimary,
                   ),
             ),
             subtitle: Text(
-              'Update account password',
+              l10n.changePasswordSubtitle,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: AppColors.textSecondary,
                   ),
@@ -698,7 +717,7 @@ class _LogoutButton extends StatelessWidget {
       child: FilledButton.icon(
         onPressed: onPressed,
         icon: const Icon(Icons.logout, size: 22, color: Colors.white),
-        label: const Text('Logout'),
+        label: Text(context.l10n.logout),
         style: FilledButton.styleFrom(
           backgroundColor: AppColors.error,
           foregroundColor: Colors.white,

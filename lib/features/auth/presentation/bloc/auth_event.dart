@@ -36,6 +36,34 @@ class AuthRegistrationStep1Next extends AuthEvent {
     required this.email,
     required this.password,
     required this.confirmPassword,
+    required this.isEmailVerified,
+  });
+
+  final String garageName;
+  final String phone;
+  final String email;
+  final String password;
+  final String confirmPassword;
+  final bool isEmailVerified;
+
+  @override
+  List<Object?> get props => [
+    garageName,
+    phone,
+    email,
+    password,
+    confirmPassword,
+    isEmailVerified,
+  ];
+}
+
+class AuthGarageSignupOtpRequested extends AuthEvent {
+  const AuthGarageSignupOtpRequested({
+    required this.garageName,
+    required this.phone,
+    required this.email,
+    required this.password,
+    required this.confirmPassword,
   });
 
   final String garageName;
@@ -45,7 +73,41 @@ class AuthRegistrationStep1Next extends AuthEvent {
   final String confirmPassword;
 
   @override
-  List<Object?> get props => [garageName, phone, email, password, confirmPassword];
+  List<Object?> get props => [
+    garageName,
+    phone,
+    email,
+    password,
+    confirmPassword,
+  ];
+}
+
+class AuthGarageSignupOtpVerified extends AuthEvent {
+  const AuthGarageSignupOtpVerified({
+    required this.garageName,
+    required this.phone,
+    required this.email,
+    required this.password,
+    required this.confirmPassword,
+    required this.code,
+  });
+
+  final String garageName;
+  final String phone;
+  final String email;
+  final String password;
+  final String confirmPassword;
+  final String code;
+
+  @override
+  List<Object?> get props => [
+    garageName,
+    phone,
+    email,
+    password,
+    confirmPassword,
+    code,
+  ];
 }
 
 /// Step 2 next: location and services submitted
@@ -67,7 +129,14 @@ class AuthRegistrationStep2Next extends AuthEvent {
   final String? placeId;
 
   @override
-  List<Object?> get props => [address, services, otherServices, latitude, longitude, placeId];
+  List<Object?> get props => [
+    address,
+    services,
+    otherServices,
+    latitude,
+    longitude,
+    placeId,
+  ];
 }
 
 /// Navigate back from step 2 to step 1
@@ -94,7 +163,11 @@ class AuthRegistrationSubmitted extends AuthEvent {
   final String? businessLicenseFileName;
 
   @override
-  List<Object?> get props => [businessLicensePath, businessLicenseBytes, businessLicenseFileName];
+  List<Object?> get props => [
+    businessLicensePath,
+    businessLicenseBytes,
+    businessLicenseFileName,
+  ];
 }
 
 /// Dismiss registration success modal

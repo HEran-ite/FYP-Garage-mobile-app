@@ -5,6 +5,7 @@ import '../../../../core/constants/auth_constants.dart';
 import '../../../../core/constants/border_radius.dart';
 import '../../../../core/constants/spacing.dart';
 import '../../../../core/error/user_friendly_errors.dart';
+import '../../../../core/locale/l10n_extension.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/domain/entities/user_entity.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
@@ -63,18 +64,23 @@ class _ServicesEditPageState extends State<ServicesEditPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is AuthProfileUpdateError) {
           setState(() => _isSaving = false);
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(toUserFriendlyMessage(state.message))),
+            SnackBar(
+              content: Text(
+                toUserFriendlyMessage(state.message, context.l10n),
+              ),
+            ),
           );
         } else if (state is AuthLoginSuccess && _isSaving) {
           setState(() => _isSaving = false);
           Navigator.of(context).pop();
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Services saved')),
+            SnackBar(content: Text(context.l10n.servicesSaved)),
           );
         }
       },
@@ -88,7 +94,7 @@ class _ServicesEditPageState extends State<ServicesEditPage> {
             onPressed: () => Navigator.of(context).pop(),
           ),
           title: Text(
-            'Edit Services',
+            l10n.editServices,
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: AppColors.textPrimary,
@@ -102,7 +108,7 @@ class _ServicesEditPageState extends State<ServicesEditPage> {
             children: [
               const SizedBox(height: AppSpacing.lg),
               Text(
-                'Services offered',
+                l10n.servicesOffered,
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w600,
                       color: AppColors.textSecondary,
@@ -110,7 +116,9 @@ class _ServicesEditPageState extends State<ServicesEditPage> {
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                '${_selectedServices.length + _customServiceNames.length} selected',
+                l10n.selectedCount(
+                  _selectedServices.length + _customServiceNames.length,
+                ),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppColors.textSecondary,
                     ),
@@ -139,7 +147,7 @@ class _ServicesEditPageState extends State<ServicesEditPage> {
                         width: 20,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Text('Save'),
+                    : Text(l10n.save),
               ),
               const SizedBox(height: AppSpacing.xxl),
             ],

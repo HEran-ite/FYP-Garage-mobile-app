@@ -30,6 +30,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  intl: any
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -58,12 +61,14 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
   flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.4
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
 # The following section is specific to Flutter packages.
 flutter:
+  generate: true
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
@@ -73,6 +78,8 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - .env
+    - assets/images/app_logo.png
+    - assets/images/app_icon.png
   #   - images/a_dot_burr.jpeg
   #   - images/a_dot_ham.jpeg
 
@@ -105,6 +112,13 @@ flutter:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "/Users/guest1/.cursor/projects/Users-guest1-Desktop-FYP-Garage-garage/assets/image-e2d71d46-b2c7-4db9-a84c-2971f83d3135.png"
-  adaptive_icon_background: "#FFFFFF"
+  image_path: "assets/images/app_icon.png"
+  adaptive_icon_background: "#FFD700"
+  adaptive_icon_foreground: "assets/images/app_icon.png"
+  remove_alpha_ios: true
   min_sdk_android: 21
+
+flutter_native_splash:
+  color: "#FFFFFF"
+  android_12:
+    color: "#FFFFFF"
