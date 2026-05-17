@@ -6,7 +6,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/constants/border_radius.dart';
 import '../../../../core/constants/spacing.dart';
 import '../../../../core/error/user_friendly_errors.dart';
+import '../../../../core/locale/date_localization.dart';
+import '../../../../core/locale/date_localization.dart';
+import '../../../../core/locale/appointment_localization.dart';
+import '../../../../core/locale/l10n_extension.dart';
+import '../../../../core/locale/service_localization.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../data/models/appointment_model.dart';
 import '../bloc/appointment_bloc.dart';
 import '../bloc/appointment_event.dart';
@@ -56,7 +62,7 @@ class _AppointmentListPageState extends State<AppointmentListPage> {
     return BlocConsumer<AppointmentBloc, AppointmentState>(
       listener: (context, state) {
         if (state is AppointmentError) {
-          final msg = toUserFriendlyMessage(state.message);
+          final msg = toUserFriendlyMessage(state.message, context.l10n);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(msg),
@@ -67,6 +73,7 @@ class _AppointmentListPageState extends State<AppointmentListPage> {
         }
       },
       builder: (context, state) {
+        final l10n = context.l10n;
         return SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -79,7 +86,7 @@ class _AppointmentListPageState extends State<AppointmentListPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Appointments',
+                      l10n.appointmentsTitle,
                       style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                             fontWeight: FontWeight.bold,
                             color: AppColors.textPrimary,
@@ -88,7 +95,7 @@ class _AppointmentListPageState extends State<AppointmentListPage> {
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      'Manage your service appointments',
+                      l10n.appointmentsSubtitle,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: AppColors.textSecondary,
                             height: 1.3,
@@ -100,7 +107,7 @@ class _AppointmentListPageState extends State<AppointmentListPage> {
               const SizedBox(height: AppSpacing.lg),
               _SearchBar(
                 controller: _searchController,
-                hint: 'Search by vehicle, plate number or driver name',
+                hint: l10n.searchAppointmentsHint,
               ),
               const SizedBox(height: AppSpacing.sm),
               if (state is AppointmentLoaded || state is AppointmentActionLoading)
@@ -152,10 +159,11 @@ class _AppointmentListPageState extends State<AppointmentListPage> {
       );
     }
     if (list != null && list.isEmpty) {
+      final l10n = context.l10n;
       final hasSearch = (loaded?.searchQuery ?? actionLoading?.searchQuery)?.isNotEmpty == true;
       return Center(
         child: Text(
-          hasSearch ? 'No appointments match your search' : 'No appointments',
+          hasSearch ? l10n.noAppointmentsMatchSearch : l10n.noAppointments,
           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                 color: AppColors.textSecondary,
               ),
@@ -163,6 +171,7 @@ class _AppointmentListPageState extends State<AppointmentListPage> {
       );
     }
     if (state is AppointmentError) {
+      final l10n = context.l10n;
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.lg),
@@ -170,7 +179,7 @@ class _AppointmentListPageState extends State<AppointmentListPage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                toUserFriendlyMessage(state.message),
+                toUserFriendlyMessage(state.message, l10n),
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: AppColors.textSecondary,
@@ -184,7 +193,7 @@ class _AppointmentListPageState extends State<AppointmentListPage> {
                   backgroundColor: AppColors.primary,
                   foregroundColor: AppColors.textPrimary,
                 ),
-                child: const Text('Retry'),
+                child: Text(l10n.retry),
               ),
             ],
           ),
@@ -254,14 +263,15 @@ class _FilterChips extends StatelessWidget {
     final countRejected = s is AppointmentLoaded ? s.countRejected : (s as AppointmentActionLoading).countRejected;
     final filter = s is AppointmentLoaded ? s.filter : (s as AppointmentActionLoading).filter;
 
+    final l10n = context.l10n;
     final bloc = context.read<AppointmentBloc>();
     final filters = [
-      (AppointmentListFilter.all, 'All', countAll),
-      (AppointmentListFilter.pending, 'Pending', countPending),
-      (AppointmentListFilter.approved, 'Approved', countApproved),
-      (AppointmentListFilter.inProgress, 'In Progress', countInProgress),
-      (AppointmentListFilter.completed, 'Completed', countCompleted),
-      (AppointmentListFilter.rejected, 'Rejected', countRejected),
+      (AppointmentListFilter.all, l10n.filterAll, countAll),
+      (AppointmentListFilter.pending, l10n.statusPending, countPending),
+      (AppointmentListFilter.approved, l10n.statusApprovedAppt, countApproved),
+      (AppointmentListFilter.inProgress, l10n.statusInProgress, countInProgress),
+      (AppointmentListFilter.completed, l10n.statusCompleted, countCompleted),
+      (AppointmentListFilter.rejected, l10n.statusRejected, countRejected),
     ];
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -296,7 +306,7 @@ class _FilterChips extends StatelessWidget {
                             ),
                     ),
                     child: Text(
-                      '${f.$2} (${f.$3})',
+                      l10n.filterChipCount(f.$2, f.$3),
                       style: Theme.of(context).textTheme.labelMedium?.copyWith(
                             fontSize: 15,
                             color: filter == f.$1
@@ -326,43 +336,68 @@ class _AppointmentCard extends StatelessWidget {
   final AppointmentModel appointment;
   final String? actionLoadingId;
 
-  /// From driver.firstName + driver.lastName (or driverName fallback).
-  String get _customerName =>
-      appointment.driverName?.isNotEmpty == true ? appointment.driverName! : 'Driver';
+  String _customerName(AppLocalizations l10n) =>
+      appointment.driverName?.isNotEmpty == true
+          ? appointment.driverName!
+          : l10n.driver;
 
-  /// From vehicles[].name (or first vehicle / vehicleName fallback). Multiple joined with ", ".
-  String get _vehicle {
+  String _vehicle(AppLocalizations l10n) {
     if (appointment.vehicles.isNotEmpty) {
-      final names = appointment.vehicles.map((v) => v.name).where((s) => s.isNotEmpty && s != '—').toList();
+      final names = appointment.vehicles
+          .map((v) => v.name)
+          .where((s) => s.isNotEmpty && s != '—')
+          .toList();
       if (names.isNotEmpty) return names.join(', ');
     }
-    return appointment.vehicleName?.isNotEmpty == true ? appointment.vehicleName! : '—';
+    return appointment.vehicleName?.isNotEmpty == true
+        ? appointment.vehicleName!
+        : l10n.emDash;
   }
 
-  /// From vehicles[].plate (or first plate / plateNumber fallback). Multiple joined with ", ".
-  String get _plate {
+  String _plate(AppLocalizations l10n) {
     if (appointment.vehicles.isNotEmpty) {
-      final plates = appointment.vehicles.map((v) => v.plate).where((s) => s.isNotEmpty && s != '—').toList();
+      final plates = appointment.vehicles
+          .map((v) => v.plate)
+          .where((s) => s.isNotEmpty && s != '—')
+          .toList();
       if (plates.isNotEmpty) return plates.join(', ');
     }
-    return appointment.plateNumber?.isNotEmpty == true ? appointment.plateNumber! : '—';
+    return appointment.plateNumber?.isNotEmpty == true
+        ? appointment.plateNumber!
+        : l10n.emDash;
   }
 
-  /// From driver.phone.
-  String get _contact =>
-      appointment.driverPhone?.isNotEmpty == true ? appointment.driverPhone! : '—';
-  String get _date => appointment.scheduledAtDisplay.split(',').first.trim();
-  String get _time =>
-      appointment.scheduledAtDisplay.contains(',')
-          ? appointment.scheduledAtDisplay.split(',').last.trim()
-          : '—';
-  String get _serviceLocation =>
-      appointment.serviceDescription.isNotEmpty
-          ? '${appointment.serviceDescription} • At Garage'
-          : '— • At Garage';
+  String _contact(AppLocalizations l10n) =>
+      appointment.driverPhone?.isNotEmpty == true
+          ? appointment.driverPhone!
+          : l10n.emDash;
+
+  String _scheduledDisplay(AppLocalizations l10n) =>
+      formatScheduledAtDisplay(l10n, appointment.scheduledAt);
+
+  String _date(AppLocalizations l10n) {
+    final display = _scheduledDisplay(l10n);
+    return display.contains(',') ? display.split(',').first.trim() : display;
+  }
+
+  String _time(AppLocalizations l10n) {
+    final display = _scheduledDisplay(l10n);
+    return display.contains(',')
+        ? display.split(',').last.trim()
+        : l10n.emDash;
+  }
+
+  String _serviceLocation(AppLocalizations l10n) {
+    final service = localizedServiceLabel(l10n, appointment.serviceDescription);
+    if (service.isNotEmpty) {
+      return '$service • ${l10n.atGarage}';
+    }
+    return '${l10n.emDash} • ${l10n.atGarage}';
+  }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final loading = actionLoadingId == appointment.id;
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -386,7 +421,7 @@ class _AppointmentCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  _customerName,
+                  _customerName(l10n),
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
                         color: AppColors.textPrimary,
@@ -403,7 +438,7 @@ class _AppointmentCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.xs),
           // Vehicle
           Text(
-            _vehicle,
+            _vehicle(l10n),
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: AppColors.textSecondary,
                   height: 1.35,
@@ -412,7 +447,7 @@ class _AppointmentCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.xs),
           // License plate
           Text(
-            _plate,
+            _plate(l10n),
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: AppColors.textSecondary,
                 ),
@@ -421,22 +456,22 @@ class _AppointmentCard extends StatelessWidget {
           // Detail rows with teal/blue icons
           _DetailRow(
             icon: Icons.calendar_today_rounded,
-            text: _date,
+            text: _date(l10n),
           ),
           const SizedBox(height: AppSpacing.xs),
           _DetailRow(
             icon: Icons.access_time_rounded,
-            text: _time,
+            text: _time(l10n),
           ),
           const SizedBox(height: AppSpacing.xs),
           _DetailRow(
             icon: Icons.location_on_outlined,
-            text: _serviceLocation,
+            text: _serviceLocation(l10n),
           ),
           const SizedBox(height: AppSpacing.xs),
           _DetailRow(
             icon: Icons.phone_outlined,
-            text: _contact,
+            text: _contact(l10n),
           ),
         ],
       ),
@@ -472,50 +507,51 @@ class _DetailRow extends StatelessWidget {
 }
 
 /// Status pill colors to match design: dark text on light background.
-Color _statusBgColor(String label) {
-  switch (label) {
-    case 'Pending':
-      return const Color(0xFFFEF3C7); // light yellow
-    case 'Approved':
-      return const Color(0xFFDBEAFE); // light blue
-    case 'In Progress':
-      return const Color(0xFFFED7AA); // light orange
-    case 'Completed':
-      return const Color(0xFFD1FAE5); // light green
-    case 'Rejected':
-    case 'Cancelled':
-      return const Color(0xFFFEE2E2); // light red
+Color _statusBgColor(String status) {
+  switch (status.toUpperCase()) {
+    case 'PENDING':
+      return const Color(0xFFFEF3C7);
+    case 'APPROVED':
+      return const Color(0xFFDBEAFE);
+    case 'IN_SERVICE':
+    case 'IN_PROGRESS':
+      return const Color(0xFFFED7AA);
+    case 'COMPLETED':
+      return const Color(0xFFD1FAE5);
+    case 'REJECTED':
+    case 'CANCELLED':
+      return const Color(0xFFFEE2E2);
     default:
       return AppColors.textSecondary.withOpacity(0.12);
   }
 }
 
-Color _statusFgColor(String label) {
-  switch (label) {
-    case 'Pending':
-      return const Color(0xFFB45309); // dark yellow/amber
-    case 'Approved':
-      return const Color(0xFF1D4ED8); // dark blue
-    case 'In Progress':
-      return const Color(0xFFC2410C); // dark orange
-    case 'Completed':
-      return const Color(0xFF047857); // dark green
-    case 'Rejected':
-    case 'Cancelled':
-      return AppColors.error; // red
+Color _statusFgColor(String status) {
+  switch (status.toUpperCase()) {
+    case 'PENDING':
+      return const Color(0xFFB45309);
+    case 'APPROVED':
+      return const Color(0xFF1D4ED8);
+    case 'IN_SERVICE':
+    case 'IN_PROGRESS':
+      return const Color(0xFFC2410C);
+    case 'COMPLETED':
+      return const Color(0xFF047857);
+    case 'REJECTED':
+    case 'CANCELLED':
+      return AppColors.error;
     default:
       return AppColors.textSecondary;
   }
 }
 
-/// Backend status values and display labels for the status dropdown.
-const List<({String value, String label})> _statusOptions = [
-  (value: 'PENDING', label: 'Pending'),
-  (value: 'APPROVED', label: 'Approved'),
-  (value: 'REJECTED', label: 'Rejected'),
-  (value: 'IN_SERVICE', label: 'In Progress'),
-  (value: 'COMPLETED', label: 'Completed'),
-  (value: 'CANCELLED', label: 'Cancelled'),
+const List<String> _statusOptionValues = [
+  'PENDING',
+  'APPROVED',
+  'REJECTED',
+  'IN_SERVICE',
+  'COMPLETED',
+  'CANCELLED',
 ];
 
 /// Status chip in the card header; tap to open dropdown and change status.
@@ -530,10 +566,12 @@ class _StatusChipDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final bloc = context.read<AppointmentBloc>();
-    final currentLabel = appointment.statusLabel;
-    final bg = _statusBgColor(currentLabel);
-    final fg = _statusFgColor(currentLabel);
+    final currentStatus = appointment.status.toUpperCase();
+    final currentLabel = localizedAppointmentStatus(l10n, currentStatus);
+    final bg = _statusBgColor(currentStatus);
+    final fg = _statusFgColor(currentStatus);
 
     if (loading) {
       return Container(
@@ -566,32 +604,36 @@ class _StatusChipDropdown extends StatelessWidget {
       color: AppColors.surface,
       padding: EdgeInsets.zero,
       constraints: const BoxConstraints(minWidth: 160),
-      itemBuilder: (context) => _statusOptions
-          .map((e) => PopupMenuItem<String>(
-                value: e.value,
-                height: 42,
-                child: Row(
-                  children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: _statusBgColor(e.label),
-                        shape: BoxShape.circle,
-                      ),
+      itemBuilder: (context) => _statusOptionValues
+          .map((statusValue) {
+            final optionLabel = localizedAppointmentStatus(l10n, statusValue);
+            return PopupMenuItem<String>(
+              value: statusValue,
+              height: 42,
+              child: Row(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: _statusBgColor(statusValue),
+                      shape: BoxShape.circle,
                     ),
-                    const SizedBox(width: 10),
-                    Text(
-                      e.label,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppColors.textPrimary,
-                            fontWeight:
-                                e.label == currentLabel ? FontWeight.w600 : FontWeight.w500,
-                          ),
-                    ),
-                  ],
-                ),
-              ))
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    optionLabel,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppColors.textPrimary,
+                          fontWeight: statusValue == currentStatus
+                              ? FontWeight.w600
+                              : FontWeight.w500,
+                        ),
+                  ),
+                ],
+              ),
+            );
+          })
           .toList(),
       onSelected: (String newStatus) {
         final currentValue = appointment.status.toUpperCase();

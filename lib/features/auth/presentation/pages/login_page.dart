@@ -2,19 +2,20 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../core/constants/auth_constants.dart';
 import '../../../../core/constants/border_radius.dart';
 import '../../../../core/constants/spacing.dart';
 import '../../../../core/error/user_friendly_errors.dart';
+import '../../../../core/locale/l10n_extension.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_brand_logo.dart';
+import '../../../../core/widgets/language_dropdown_button.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
 import '../widgets/auth_text_field.dart';
 
-/// Login screen - email, password, sign in, and link to sign up.
-/// On first build, dispatches [AuthRestoreSession] to restore session from SharedPreferences if present.
+/// Login screen with CarCare branding, language dropdown, and localized copy.
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -26,7 +27,6 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void initState() {
     super.initState();
-    // Restore session on next frame so SharedPreferences is ready (avoids channel-error on Android).
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         context.read<AuthBloc>().add(const AuthRestoreSession());
@@ -46,31 +46,28 @@ class _LoginPageState extends State<LoginPage> {
             }
             if (state is AuthLoginError) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(toUserFriendlyMessage(state.message))),
+                SnackBar(
+                  content: Text(
+                    toUserFriendlyMessage(state.message, context.l10n),
+                  ),
+                ),
               );
             }
           },
           builder: (context, state) {
-            // Don't show "Sign in" until we've checked saved session.
             if (state is AuthRestoringSession) {
-              return const Center(
+              return Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: AppSpacing.lg),
-                    Text('Loading...'),
+                    const CircularProgressIndicator(color: AppColors.primary),
+                    const SizedBox(height: AppSpacing.lg),
+                    Text(context.l10n.loading),
                   ],
                 ),
               );
             }
-            final isLoading = state is AuthLoginLoading;
-            return Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                child: _LoginForm(isLoading: isLoading),
-              ),
-            );
+            return _LoginBody(isLoading: state is AuthLoginLoading);
           },
         ),
       ),
@@ -78,16 +75,104 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
-class _LoginForm extends StatefulWidget {
-  const _LoginForm({required this.isLoading});
+class _LoginBody extends StatelessWidget {
+  const _LoginBody({required this.isLoading});
 
   final bool isLoading;
 
   @override
-  State<_LoginForm> createState() => _LoginFormState();
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(
+            top: AppSpacing.sm,
+            right: AppSpacing.lg,
+          ),
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: const LanguageDropdownButton(),
+          ),
+        ),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: AppSpacing.md),
+                const Center(child: AppBrandLogo(width: 280)),
+                const SizedBox(height: AppSpacing.xl),
+                Text(
+                  l10n.loginWelcome,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                        letterSpacing: -0.3,
+                      ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  l10n.loginWelcomeSubtitle,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.textSecondary,
+                        height: 1.4,
+                      ),
+                ),
+                const SizedBox(height: AppSpacing.xl),
+                _LoginFormCard(isLoading: isLoading),
+                const SizedBox(height: AppSpacing.lg),
+                Center(
+                  child: RichText(
+                    text: TextSpan(
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                      children: [
+                        TextSpan(text: l10n.noAccount),
+                        TextSpan(
+                          text: l10n.createAccountLink,
+                          style: const TextStyle(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          recognizer: TapGestureRecognizer()
+                            ..onTap = () {
+                              context
+                                  .read<AuthBloc>()
+                                  .add(const AuthRegistrationStarted());
+                              Navigator.of(context)
+                                  .pushNamed(RoutePaths.createAccount);
+                            },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xxl),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
-class _LoginFormState extends State<_LoginForm> {
+class _LoginFormCard extends StatefulWidget {
+  const _LoginFormCard({required this.isLoading});
+
+  final bool isLoading;
+
+  @override
+  State<_LoginFormCard> createState() => _LoginFormCardState();
+}
+
+class _LoginFormCardState extends State<_LoginFormCard> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -102,142 +187,98 @@ class _LoginFormState extends State<_LoginForm> {
   void _submit() {
     if (_formKey.currentState?.validate() ?? false) {
       context.read<AuthBloc>().add(
-        AuthLoginRequested(
-          email: _emailController.text.trim(),
-          password: _passwordController.text,
-        ),
-      );
+            AuthLoginRequested(
+              email: _emailController.text.trim(),
+              password: _passwordController.text,
+            ),
+          );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Form(
-      key: _formKey,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const SizedBox(height: AppSpacing.xxl),
-          _LogoHeader(),
-          const SizedBox(height: AppSpacing.xxl),
-          AuthTextField(
-            label: 'Email',
-            hint: 'you@example.com',
-            prefixIcon: const Icon(Icons.mail_outline, color: AppColors.inputIcon),
-            controller: _emailController,
-            keyboardType: TextInputType.emailAddress,
-            autofillHints: const [AutofillHints.email],
-            validator: (v) => v == null || v.trim().isEmpty ? 'Email is required' : null,
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          AuthTextField(
-            label: 'Password',
-            hint: AuthConstants.passwordPlaceholder,
-            prefixIcon: const Icon(
-              Icons.lock_outline,
-              color: AppColors.inputIcon,
-            ),
-            controller: _passwordController,
-            obscureText: true,
-            autofillHints: const [AutofillHints.password],
-            validator: (v) => v == null || v.isEmpty ? 'Password is required' : null,
-          ),
-          const SizedBox(height: AppSpacing.xl),
-          FilledButton(
-            onPressed: widget.isLoading ? null : _submit,
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.primaryButtonText,
-              padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppBorderRadius.md),
-              ),
-            ),
-            child: widget.isLoading
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: AppColors.primaryButtonText,
-                    ),
-                  )
-                : const Text(
-                    'Sign In',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          Center(
-            child: RichText(
-              text: TextSpan(
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(color: AppColors.textPrimary),
-                children: [
-                  const TextSpan(text: "Don't have an account? "),
-                  TextSpan(
-                    text: 'Sign Up',
-                    style: TextStyle(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w600,
-                      decoration: TextDecoration.underline,
-                      decorationColor: AppColors.primary,
-                    ),
-                    recognizer: TapGestureRecognizer()
-                      ..onTap = () => _navigateToCreateAccount(context),
-                  ),
-                ],
-              ),
-            ),
+    final l10n = context.l10n;
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppBorderRadius.lg),
+        border: Border.all(color: AppColors.inputBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-    );
-  }
-
-  void _navigateToCreateAccount(BuildContext context) {
-    context.read<AuthBloc>().add(const AuthRegistrationStarted());
-    Navigator.of(context).pushNamed(RoutePaths.createAccount);
-  }
-}
-
-class _LogoHeader extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Container(
-          width: 56,
-          height: 56,
-          decoration: BoxDecoration(
-            color: AppColors.accentIconBg,
-            borderRadius: BorderRadius.circular(AppBorderRadius.sm),
-            border: Border.all(color: AppColors.accentIconBorder, width: 1),
-          ),
-          child: const Icon(
-            Icons.build,
-            size: 32,
-            color: AppColors.textPrimary,
-          ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AuthTextField(
+              label: l10n.email,
+              hint: l10n.emailHint,
+              prefixIcon: const Icon(
+                Icons.mail_outline,
+                color: AppColors.inputIcon,
+              ),
+              controller: _emailController,
+              keyboardType: TextInputType.emailAddress,
+              autofillHints: const [AutofillHints.email],
+              onCard: true,
+              validator: (v) =>
+                  v == null || v.trim().isEmpty ? l10n.emailRequired : null,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            AuthTextField(
+              label: l10n.password,
+              hint: l10n.passwordPlaceholder,
+              prefixIcon: const Icon(
+                Icons.lock_outline,
+                color: AppColors.inputIcon,
+              ),
+              controller: _passwordController,
+              obscureText: true,
+              autofillHints: const [AutofillHints.password],
+              onCard: true,
+              validator: (v) =>
+                  v == null || v.isEmpty ? l10n.passwordRequired : null,
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            FilledButton(
+              onPressed: widget.isLoading ? null : _submit,
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.primaryButtonText,
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppBorderRadius.md),
+                ),
+              ),
+              child: widget.isLoading
+                  ? const SizedBox(
+                      height: 22,
+                      width: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.primaryButtonText,
+                      ),
+                    )
+                  : Text(
+                      l10n.signIn,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+            ),
+          ],
         ),
-        const SizedBox(height: AppSpacing.md),
-        Text(
-          'Garage Owner',
-          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          'Sign in to manage your services',
-          style: Theme.of(
-            context,
-          ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
-        ),
-      ],
+      ),
     );
   }
 }

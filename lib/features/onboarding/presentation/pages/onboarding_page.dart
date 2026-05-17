@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/constants/spacing.dart';
+import '../../../../core/locale/l10n_extension.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../l10n/app_localizations.dart';
 
 class OnboardingPage extends StatefulWidget {
   const OnboardingPage({super.key});
@@ -18,26 +20,26 @@ class _OnboardingPageState extends State<OnboardingPage> {
   final PageController _controller = PageController();
   int _index = 0;
 
-  static const _items = <({String title, String subtitle, IconData icon})>[
-    (
-      title: 'Manage Appointment Requests',
-      subtitle:
-          'Review incoming bookings, approve or reject requests, and keep your schedule organized.',
-      icon: Icons.calendar_month_rounded,
-    ),
-    (
-      title: 'Set Services and Availability',
-      subtitle:
-          'Update your offered services and working slots so customers can book at the right time.',
-      icon: Icons.build_circle_outlined,
-    ),
-    (
-      title: 'Stay Updated with Notifications',
-      subtitle:
-          'Get real-time alerts for new requests, status changes, and important garage updates.',
-      icon: Icons.notifications_active_rounded,
-    ),
-  ];
+  static List<({String title, String subtitle, IconData icon})> _items(
+    AppLocalizations l10n,
+  ) =>
+      [
+        (
+          title: l10n.onboardingTitle1,
+          subtitle: l10n.onboardingSubtitle1,
+          icon: Icons.calendar_month_rounded,
+        ),
+        (
+          title: l10n.onboardingTitle2,
+          subtitle: l10n.onboardingSubtitle2,
+          icon: Icons.build_circle_outlined,
+        ),
+        (
+          title: l10n.onboardingTitle3,
+          subtitle: l10n.onboardingSubtitle3,
+          icon: Icons.notifications_active_rounded,
+        ),
+      ];
 
   @override
   void dispose() {
@@ -56,7 +58,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isLast = _index == _items.length - 1;
+    final l10n = context.l10n;
+    final items = _items(l10n);
+    final isLast = _index == items.length - 1;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -75,7 +79,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                     Expanded(
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
-                        children: List.generate(_items.length, (i) {
+                        children: List.generate(items.length, (i) {
                           final active = i == _index;
                           return AnimatedContainer(
                             duration: const Duration(milliseconds: 180),
@@ -97,9 +101,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
                       style: TextButton.styleFrom(
                         foregroundColor: AppColors.textSecondary,
                       ),
-                      child: const Text(
-                        'Skip',
-                        style: TextStyle(
+                      child: Text(
+                        l10n.skip,
+                        style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
                         ),
@@ -111,10 +115,10 @@ class _OnboardingPageState extends State<OnboardingPage> {
               Expanded(
                 child: PageView.builder(
                   controller: _controller,
-                  itemCount: _items.length,
+                  itemCount: items.length,
                   onPageChanged: (value) => setState(() => _index = value),
                   itemBuilder: (context, i) {
-                    final item = _items[i];
+                    final item = items[i];
                     return Padding(
                       padding: const EdgeInsets.symmetric(
                         horizontal: AppSpacing.md,
@@ -214,7 +218,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                       );
                     },
                     child: Text(
-                      isLast ? 'Get Started' : 'Continue',
+                      isLast ? l10n.getStarted : l10n.continueButton,
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,

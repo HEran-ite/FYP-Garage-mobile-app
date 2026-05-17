@@ -1,6 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../core/error/user_friendly_errors.dart';
 import '../../domain/entities/notification_entity.dart';
 import '../../domain/usecases/get_notifications_usecase.dart';
 import '../../domain/usecases/mark_all_notifications_read_usecase.dart';
@@ -30,7 +29,7 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
     emit(NotificationLoading());
     final result = await _getNotifications();
     result.fold(
-      (failure) => emit(NotificationError(toUserFriendlyMessage(failure.message))),
+      (failure) => emit(NotificationError(failure.message)),
       (list) => emit(NotificationLoaded(list)),
     );
   }

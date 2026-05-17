@@ -3,20 +3,12 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/border_radius.dart';
 import '../../../../core/constants/spacing.dart';
 import '../../../../core/error/user_friendly_errors.dart';
+import '../../../../core/locale/date_localization.dart';
+import '../../../../core/locale/l10n_extension.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../../availability/data/models/availability_slot_model.dart';
 import '../../../availability/domain/repositories/availability_repository.dart';
-
-/// Day label for display
-const List<String> _dayLabels = [
-  'Monday',
-  'Tuesday',
-  'Wednesday',
-  'Thursday',
-  'Friday',
-  'Saturday',
-  'Sunday',
-];
 
 const List<String> _dayOfWeekValues = [
   'MONDAY',
@@ -60,14 +52,14 @@ String _minutesToTime(int minutes) {
 }
 
 /// Format "HH:mm" (24h) to 12-hour display e.g. "2:30 PM", "12:00 AM".
-String _formatTime24To12(String time24) {
+String _formatTime24To12(String time24, AppLocalizations l10n) {
   final parts = time24.split(':');
   if (parts.length < 2) return time24;
   final h = int.tryParse(parts[0]) ?? 0;
   final m = int.tryParse(parts[1]) ?? 0;
   final hour = h.clamp(0, 23);
   final minute = m.clamp(0, 59);
-  final period = hour >= 12 ? 'PM' : 'AM';
+  final period = hour >= 12 ? l10n.pm : l10n.am;
   final hour12 = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
   return '$hour12:${minute.toString().padLeft(2, '0')} $period';
 }
@@ -191,7 +183,7 @@ class _SetAvailabilityPageState extends State<SetAvailabilityPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(toUserFriendlyMessage(e.toString())),
+            content: Text(toUserFriendlyMessage(e.toString(), context.l10n)),
             backgroundColor: AppColors.error,
           ),
         );
@@ -203,6 +195,8 @@ class _SetAvailabilityPageState extends State<SetAvailabilityPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final dayLabels = localizedWeekdayNames(l10n);
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -216,14 +210,14 @@ class _SetAvailabilityPageState extends State<SetAvailabilityPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Set Availability',
+              l10n.setAvailability,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: AppColors.textPrimary,
                   ),
             ),
             Text(
-              'Configure your working hours.',
+              l10n.configureWorkingHours,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: AppColors.textSecondary,
                   ),
@@ -240,11 +234,14 @@ class _SetAvailabilityPageState extends State<SetAvailabilityPage> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(_error!, textAlign: TextAlign.center),
+                        Text(
+                          toUserFriendlyMessage(_error!, l10n),
+                          textAlign: TextAlign.center,
+                        ),
                         const SizedBox(height: AppSpacing.md),
                         FilledButton(
                           onPressed: _loadSlots,
-                          child: const Text('Retry'),
+                          child: Text(l10n.retry),
                         ),
                       ],
                     ),
@@ -257,7 +254,7 @@ class _SetAvailabilityPageState extends State<SetAvailabilityPage> {
                     children: [
                       for (var i = 0; i < 7; i++) ...[
                         _DayCard(
-                          dayLabel: _dayLabels[i],
+                          dayLabel: dayLabels[i],
                           state: _days[i],
                           onToggle: (open) {
                             setState(() {
@@ -302,7 +299,7 @@ class _SetAvailabilityPageState extends State<SetAvailabilityPage> {
                                   color: AppColors.textPrimary,
                                 ),
                               )
-                            : const Text('Save'),
+                            : Text(l10n.save),
                       ),
                     ],
                   ),
@@ -330,6 +327,7 @@ class _DayCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
@@ -375,7 +373,7 @@ class _DayCard extends StatelessWidget {
                     Row(
                       children: [
                         Text(
-                          'Time Slot ${index + 1}',
+                          l10n.timeSlot(index + 1),
                           style: Theme.of(context).textTheme.labelMedium?.copyWith(
                                 color: AppColors.textSecondary,
                               ),
@@ -388,7 +386,7 @@ class _DayCard extends StatelessWidget {
                             size: 22,
                             color: AppColors.error,
                           ),
-                          tooltip: 'Remove time slot',
+                          tooltip: l10n.removeTimeSlot,
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(
                             minWidth: 40,
@@ -402,7 +400,7 @@ class _DayCard extends StatelessWidget {
                       children: [
                         Expanded(
                           child: _TimeField(
-                            label: 'Opening',
+                            label: l10n.opening,
                             value: slot.opening,
                             onChanged: (v) {
                               slot.opening = v;
@@ -413,7 +411,7 @@ class _DayCard extends StatelessWidget {
                         const SizedBox(width: AppSpacing.sm),
                         Expanded(
                           child: _TimeField(
-                            label: 'Closing',
+                            label: l10n.closing,
                             value: slot.closing,
                             onChanged: (v) {
                               slot.closing = v;
@@ -430,7 +428,7 @@ class _DayCard extends StatelessWidget {
             TextButton.icon(
               onPressed: onAddSlot,
               icon: const Icon(Icons.add, size: 20),
-              label: const Text('Add Time Slot'),
+              label: Text(l10n.addTimeSlot),
               style: TextButton.styleFrom(
                 foregroundColor: AppColors.primary,
               ),
@@ -450,6 +448,7 @@ class _OpenClosedPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -467,7 +466,7 @@ class _OpenClosedPill extends StatelessWidget {
             borderRadius: BorderRadius.circular(AppBorderRadius.full),
           ),
           child: Text(
-            isOpen ? 'Open' : 'Closed',
+            isOpen ? l10n.open : l10n.closed,
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
                   color: isOpen ? Colors.white : AppColors.textSecondary,
                   fontWeight: FontWeight.w600,
@@ -492,7 +491,7 @@ class _TimeField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final displayValue = _formatTime24To12(value);
+    final displayValue = _formatTime24To12(value, context.l10n);
     return TextFormField(
       key: ValueKey('$label-$value'),
       initialValue: displayValue,

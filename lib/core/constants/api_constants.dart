@@ -10,6 +10,9 @@ class ApiConstants {
   /// Garage auth paths (relative to base URL)
   static const String garageAuthLogin = '/garages/auth/login';
   static const String garageAuthSignup = '/garages/auth/signup';
+  static const String garageAuthRequestOtp = '/garages/auth/request-otp';
+  static const String garageAuthSendOtpLegacy = '/garages/auth/send-otp';
+  static const String garageAuthVerifyOtp = '/garages/auth/verify-otp';
 
   /// Garage profile (backend garage-missing-endpoints: GET/PUT /garage/profile)
   static const String garageProfile = '/garage/profile';
@@ -17,7 +20,8 @@ class ApiConstants {
 
   /// Garage services (backend: GET/PUT/POST /garages/me/services, PATCH/DELETE /garages/me/services/:id)
   static const String garageMeServicesList = '/garages/me/services';
-  static String garageMeServiceById(String serviceId) => '/garages/me/services/$serviceId';
+  static String garageMeServiceById(String serviceId) =>
+      '/garages/me/services/$serviceId';
 
   /// Garage appointments (JWT). Matches driver-garage-backend garage-missing-endpoints:
   /// GET/PATCH `/garages/appointments`, PATCH `.../:id/approve`, `.../:id/reject`, `.../:id/status`.

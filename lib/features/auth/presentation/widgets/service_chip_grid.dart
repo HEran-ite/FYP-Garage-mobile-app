@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/auth_constants.dart';
 import '../../../../core/constants/border_radius.dart';
 import '../../../../core/constants/spacing.dart';
+import '../../../../core/locale/l10n_extension.dart';
+import '../../../../core/locale/service_localization.dart';
 import '../../../../core/theme/app_colors.dart';
 
 /// Grid of selectable predefined services + list of custom services (each as its own chip).
@@ -50,6 +52,7 @@ class _ServiceChipGridState extends State<ServiceChipGrid> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -64,6 +67,7 @@ class _ServiceChipGridState extends State<ServiceChipGrid> {
             final isSelected = widget.selectedServices.contains(label);
             return _ServiceChip(
               label: label,
+              displayLabel: localizedServiceLabel(l10n, label),
               isSelected: isSelected,
               onTap: () {
                 final next = List<String>.from(widget.selectedServices);
@@ -79,7 +83,7 @@ class _ServiceChipGridState extends State<ServiceChipGrid> {
         ),
         const SizedBox(height: AppSpacing.md),
         Text(
-          'Custom services',
+          l10n.customServices,
           style: Theme.of(context).textTheme.labelMedium?.copyWith(
             color: AppColors.textSecondary,
             fontWeight: FontWeight.w600,
@@ -110,8 +114,8 @@ class _ServiceChipGridState extends State<ServiceChipGrid> {
               child: TextFormField(
                 controller: _customInputController,
                 decoration: InputDecoration(
-                  labelText: 'Add custom service',
-                  hintText: 'e.g. Bodywork, Detailing',
+                  labelText: l10n.addCustomService,
+                  hintText: l10n.customServiceHint,
                   hintStyle: TextStyle(color: AppColors.textSecondary),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppBorderRadius.md),
@@ -133,7 +137,7 @@ class _ServiceChipGridState extends State<ServiceChipGrid> {
                 backgroundColor: AppColors.primary,
                 foregroundColor: AppColors.textPrimary,
               ),
-              child: const Text('Add'),
+              child: Text(l10n.add),
             ),
           ],
         ),
@@ -145,11 +149,13 @@ class _ServiceChipGridState extends State<ServiceChipGrid> {
 class _ServiceChip extends StatelessWidget {
   const _ServiceChip({
     required this.label,
+    required this.displayLabel,
     required this.isSelected,
     required this.onTap,
   });
 
   final String label;
+  final String displayLabel;
   final bool isSelected;
   final VoidCallback onTap;
 
@@ -222,7 +228,7 @@ class _ServiceChip extends StatelessWidget {
                 const SizedBox(width: AppSpacing.sm),
                 Flexible(
                   child: Text(
-                    label,
+                    displayLabel,
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,

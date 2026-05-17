@@ -5,6 +5,7 @@ import '../../../../core/constants/auth_constants.dart';
 import '../../../../core/constants/border_radius.dart';
 import '../../../../core/constants/spacing.dart';
 import '../../../../core/error/user_friendly_errors.dart';
+import '../../../../core/locale/l10n_extension.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/domain/entities/user_entity.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
@@ -67,7 +68,11 @@ class _ServiceListPageState extends State<ServiceListPage> {
         if (state is AuthProfileUpdateError) {
           setState(() => _isSaving = false);
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(toUserFriendlyMessage(state.message))),
+            SnackBar(
+              content: Text(
+                toUserFriendlyMessage(state.message, context.l10n),
+              ),
+            ),
           );
         } else if (state is AuthLoginSuccess && _isSaving) {
           setState(() {
@@ -75,7 +80,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
             _syncFromUser(state.user);
           });
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Services saved')),
+            SnackBar(content: Text(context.l10n.servicesSaved)),
           );
         }
       },
@@ -99,10 +104,11 @@ class _ServiceListPageState extends State<ServiceListPage> {
                     ? state.user
                     : null;
         if (user == null) {
-          return const Scaffold(
-            body: Center(child: Text('Please sign in')),
+          return Scaffold(
+            body: Center(child: Text(context.l10n.pleaseSignIn)),
           );
         }
+        final l10n = context.l10n;
         if (!_hasInitialized) {
           _hasInitialized = true;
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -125,7 +131,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
                 children: [
                   const SizedBox(height: AppSpacing.lg),
                   Text(
-                    'Services You Provide',
+                    l10n.servicesYouProvide,
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: AppColors.textPrimary,
@@ -133,14 +139,14 @@ class _ServiceListPageState extends State<ServiceListPage> {
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
-                    'Select and manage the services your garage offers.',
+                    l10n.servicesYouProvideSubtitle,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: AppColors.textSecondary,
                         ),
                   ),
                   const SizedBox(height: AppSpacing.xl),
                   Text(
-                    'Services offered',
+                    l10n.servicesOffered,
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w600,
                           color: AppColors.textSecondary,
@@ -148,7 +154,9 @@ class _ServiceListPageState extends State<ServiceListPage> {
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
-                    '${_selectedServices.length + _customServiceNames.length} selected',
+                    l10n.selectedCount(
+                      _selectedServices.length + _customServiceNames.length,
+                    ),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: AppColors.textSecondary,
                         ),
@@ -177,7 +185,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
                             width: 20,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text('Save'),
+                        : Text(l10n.save),
                   ),
                   const SizedBox(height: AppSpacing.xxl),
                 ],

@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/border_radius.dart';
 import '../../../../core/constants/spacing.dart';
 import '../../../../core/error/user_friendly_errors.dart';
+import '../../../../core/locale/date_localization.dart';
+import '../../../../core/locale/l10n_extension.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../injection/injection_container.dart';
 import '../../data/datasources/garage_ratings_remote_datasource.dart';
@@ -46,30 +49,17 @@ class _GarageReviewsPageState extends State<GarageReviewsPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = toUserFriendlyMessage(e.toString());
+        _error = e.toString();
         _loading = false;
       });
     }
   }
 
-  String _fmtDate(DateTime? dt) {
-    if (dt == null) return 'Unknown date';
+  String _fmtDate(DateTime? dt, AppLocalizations l10n) {
+    if (dt == null) return l10n.unknownDate;
     final local = dt.toLocal();
-    final month = <String>[
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ][local.month - 1];
-    return '$month ${local.day}, ${local.year}';
+    final months = localizedMonthNames(l10n);
+    return '${months[local.month - 1]} ${local.day}, ${local.year}';
   }
 
   Widget _buildStars(double rating, {double size = 18}) {
@@ -104,6 +94,7 @@ class _GarageReviewsPageState extends State<GarageReviewsPage> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
+        final l10n = context.l10n;
         return SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(AppSpacing.lg),
@@ -112,7 +103,7 @@ class _GarageReviewsPageState extends State<GarageReviewsPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  detail.driverName ?? 'Customer',
+                  detail.driverName ?? l10n.customer,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
                         color: AppColors.textPrimary,
@@ -124,14 +115,14 @@ class _GarageReviewsPageState extends State<GarageReviewsPage> {
                 Text(
                   detail.comment?.trim().isNotEmpty == true
                       ? detail.comment!
-                      : 'No written review provided.',
+                      : l10n.noWrittenReview,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: AppColors.textSecondary,
                       ),
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
-                  'Reviewed: ${_fmtDate(detail.createdAt)}',
+                  l10n.reviewedOn(_fmtDate(detail.createdAt, l10n)),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppColors.textSecondary,
                       ),
@@ -139,7 +130,9 @@ class _GarageReviewsPageState extends State<GarageReviewsPage> {
                 if (detail.appointmentScheduledAt != null) ...[
                   const SizedBox(height: AppSpacing.xs),
                   Text(
-                    'Appointment: ${_fmtDate(detail.appointmentScheduledAt)}',
+                    l10n.appointmentOn(
+                      _fmtDate(detail.appointmentScheduledAt, l10n),
+                    ),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: AppColors.textSecondary,
                         ),
@@ -155,11 +148,12 @@ class _GarageReviewsPageState extends State<GarageReviewsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: AppColors.surface,
-        title: const Text('Reviews & Ratings'),
+        title: Text(l10n.reviewsAndRatings),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
@@ -171,7 +165,7 @@ class _GarageReviewsPageState extends State<GarageReviewsPage> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          _error!,
+                          toUserFriendlyMessage(_error!, l10n),
                           textAlign: TextAlign.center,
                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                 color: AppColors.textSecondary,
@@ -180,7 +174,7 @@ class _GarageReviewsPageState extends State<GarageReviewsPage> {
                         const SizedBox(height: AppSpacing.sm),
                         TextButton(
                           onPressed: _loadRatings,
-                          child: const Text('Retry'),
+                          child: Text(l10n.retry),
                         ),
                       ],
                     ),
@@ -189,7 +183,7 @@ class _GarageReviewsPageState extends State<GarageReviewsPage> {
               : _ratings.isEmpty
                   ? Center(
                       child: Text(
-                        'No reviews yet',
+                        l10n.noReviewsYet,
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                               color: AppColors.textSecondary,
                             ),
@@ -219,7 +213,7 @@ class _GarageReviewsPageState extends State<GarageReviewsPage> {
                                 _buildStars(_averageRating),
                                 const Spacer(),
                                 Text(
-                                  '$_totalRatings review${_totalRatings == 1 ? '' : 's'}',
+                                  l10n.reviewCount(_totalRatings),
                                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                         color: AppColors.textSecondary,
                                       ),
@@ -238,7 +232,8 @@ class _GarageReviewsPageState extends State<GarageReviewsPage> {
                               separatorBuilder: (_, __) => const Divider(height: 1),
                               itemBuilder: (_, i) {
                                 final review = _ratings[i];
-                                final displayName = review.driverName ?? 'Customer';
+                                final displayName =
+                                    review.driverName ?? l10n.customer;
                                 return InkWell(
                                   onTap: () => _openReviewDetail(review),
                                   child: Padding(
@@ -287,7 +282,7 @@ class _GarageReviewsPageState extends State<GarageReviewsPage> {
                                                     child: Text(
                                                       review.comment?.trim().isNotEmpty == true
                                                           ? review.comment!
-                                                          : 'No comment',
+                                                          : l10n.noComment,
                                                       style: AppTextStyles.bodySmall.copyWith(
                                                         color: AppColors.textSecondary,
                                                       ),
@@ -295,7 +290,7 @@ class _GarageReviewsPageState extends State<GarageReviewsPage> {
                                                   ),
                                                   const SizedBox(width: AppSpacing.sm),
                                                   Text(
-                                                    _fmtDate(review.createdAt),
+                                                    _fmtDate(review.createdAt, l10n),
                                                     style: AppTextStyles.bodySmall.copyWith(
                                                       color: AppColors.textSecondary,
                                                     ),

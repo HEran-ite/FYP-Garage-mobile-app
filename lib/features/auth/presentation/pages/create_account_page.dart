@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -8,10 +9,14 @@ import '../../../../core/constants/auth_constants.dart';
 import '../../../../core/constants/border_radius.dart';
 import '../../../../core/constants/spacing.dart';
 import '../../../../core/error/user_friendly_errors.dart';
+import '../../../../core/locale/l10n_extension.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
+import '../widgets/auth_form_card.dart';
+import '../widgets/auth_page_layout.dart';
+import '../widgets/auth_primary_button.dart';
 import '../widgets/auth_text_field.dart';
 import '../widgets/document_upload_button.dart';
 import '../widgets/location_picker_field.dart';
@@ -28,74 +33,64 @@ class CreateAccountPage extends StatelessWidget {
       listener: (context, state) {
         if (state is AuthRegistrationError) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(toUserFriendlyMessage(state.message))),
+            SnackBar(
+              content: Text(
+                toUserFriendlyMessage(state.message, context.l10n),
+              ),
+            ),
           );
         }
       },
       builder: (context, state) {
+        final l10n = context.l10n;
+        if (state is AuthRegistrationSuccess) {
+          return _buildStepContent(context, state);
+        }
         return PopScope(
           canPop: false,
           onPopInvokedWithResult: (didPop, _) {
             if (didPop) return;
             _onBack(context, state);
           },
-          child: Scaffold(
-          backgroundColor: AppColors.surface,
-          appBar: AppBar(
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () => _onBack(context, state),
-            ),
-            title: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('Create Account'),
-                Text(
-                  'Step ${_currentStep(state) + 1} of ${AuthConstants.registrationStepCount}',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.normal,
-                  ),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              RegisterPageLayout(
+                onBack: () => _onBack(context, state),
+                stepLabel: l10n.registrationStep(
+                  _currentStep(state) + 1,
+                  AuthConstants.registrationStepCount,
                 ),
-              ],
-            ),
-            centerTitle: true,
-            backgroundColor: Colors.white,
-            foregroundColor: AppColors.textPrimary,
-            elevation: 0,
-          ),
-          body: state is AuthRegistrationSuccess
-              ? _buildStepContent(context, state)
-              : Stack(
-                  fit: StackFit.expand,
+                body: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.lg,
-                      ),
+                    RegistrationStepper(currentStep: _currentStep(state)),
+                    const SizedBox(height: AppSpacing.lg),
+                    AuthFormCard(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          const SizedBox(height: AppSpacing.md),
-                          RegistrationStepper(currentStep: _currentStep(state)),
-                          const SizedBox(height: AppSpacing.lg),
-                          ..._registrationStepChildren(state),
-                        ],
+                        children: _registrationStepChildren(state),
                       ),
                     ),
-                    if (state is AuthRegistrationSubmitting)
-                      Positioned.fill(
-                        child: AbsorbPointer(
-                          child: ColoredBox(
-                            color: Colors.black.withValues(alpha: 0.35),
-                            child: const Center(
-                              child: CircularProgressIndicator(),
-                            ),
-                          ),
-                        ),
-                      ),
+                    const SizedBox(height: AppSpacing.xl),
+                    _RegisterSignInFooter(),
                   ],
                 ),
+              ),
+              if (state is AuthRegistrationSubmitting)
+                Positioned.fill(
+                  child: AbsorbPointer(
+                    child: ColoredBox(
+                      color: Colors.black.withValues(alpha: 0.35),
+                      child: const Center(
+                        child: CircularProgressIndicator(
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
         );
       },
@@ -120,6 +115,11 @@ class CreateAccountPage extends StatelessWidget {
   List<Widget> _registrationStepChildren(AuthState state) {
     if (state is AuthRegistrationStep1) {
       return [_Step1Content(restore: state.restore)];
+    }
+    if (state is AuthRegistrationError &&
+        state.step1Data != null &&
+        state.step2Data == null) {
+      return [_Step1Content(restore: state.step1Data)];
     }
     if (state is AuthRegistrationStep2) {
       return [
@@ -195,13 +195,47 @@ class CreateAccountPage extends StatelessWidget {
         garageName: state.garageName,
         onGotIt: () {
           context.read<AuthBloc>().add(
-            const AuthRegistrationSuccessDismissed(),
-          );
+                const AuthRegistrationSuccessDismissed(),
+              );
           Navigator.of(context).pop();
         },
       );
     }
     return const SizedBox();
+  }
+}
+
+class _RegisterSignInFooter extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return Center(
+      child: RichText(
+        textAlign: TextAlign.center,
+        text: TextSpan(
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: AppColors.textSecondary,
+              ),
+          children: [
+            TextSpan(text: l10n.alreadyHaveAccount),
+            TextSpan(
+              text: l10n.signInLink,
+              style: const TextStyle(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w700,
+              ),
+              recognizer: TapGestureRecognizer()
+                ..onTap = () {
+                  context.read<AuthBloc>().add(
+                        const AuthRegistrationCancelled(),
+                      );
+                  Navigator.of(context).pop();
+                },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -221,6 +255,12 @@ class _Step1ContentState extends State<_Step1Content> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   final _confirmPassword = TextEditingController();
+  final _otpCode = TextEditingController();
+  bool _otpRequested = false;
+  bool _isEmailVerified = false;
+  bool _otpRequestInFlight = false;
+  bool _otpVerifyInFlight = false;
+  int? _otpExpiresInMinutes;
 
   @override
   void initState() {
@@ -232,7 +272,29 @@ class _Step1ContentState extends State<_Step1Content> {
       _email.text = r.email;
       _password.text = r.password;
       _confirmPassword.text = r.confirmPassword;
+      _otpRequested = r.otpRequested;
+      _isEmailVerified = r.isEmailVerified;
+      _otpRequestInFlight = r.otpRequestInFlight;
+      _otpVerifyInFlight = r.otpVerifyInFlight;
+      _otpExpiresInMinutes = r.otpExpiresInMinutes;
     }
+  }
+
+  @override
+  void didUpdateWidget(covariant _Step1Content oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final r = widget.restore;
+    if (r == null) return;
+    _garageName.text = r.garageName;
+    _phone.text = r.phone;
+    _email.text = r.email;
+    _password.text = r.password;
+    _confirmPassword.text = r.confirmPassword;
+    _otpRequested = r.otpRequested;
+    _isEmailVerified = r.isEmailVerified;
+    _otpRequestInFlight = r.otpRequestInFlight;
+    _otpVerifyInFlight = r.otpVerifyInFlight;
+    _otpExpiresInMinutes = r.otpExpiresInMinutes;
   }
 
   @override
@@ -242,11 +304,13 @@ class _Step1ContentState extends State<_Step1Content> {
     _email.dispose();
     _password.dispose();
     _confirmPassword.dispose();
+    _otpCode.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Form(
       key: _formKey,
       child: Column(
@@ -255,50 +319,142 @@ class _Step1ContentState extends State<_Step1Content> {
         children: [
           _SectionHeader(
             icon: Icons.build,
-            title: 'Basic Information',
-            subtitle: 'Tell us about your garage',
+            title: l10n.basicInformation,
+            subtitle: l10n.tellUsAboutGarage,
             useSquareIcon: true,
           ),
           const SizedBox(height: AppSpacing.xl),
           AuthTextField(
-            label: 'Garage Name *',
+            label: '${l10n.garageName} *',
+            onCard: true,
             controller: _garageName,
-            validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+            validator: (v) =>
+                v == null || v.trim().isEmpty ? l10n.required : null,
             maxLength: AuthConstants.maxGarageNameLength,
             prefixIcon: const Icon(Icons.business, color: AppColors.inputIcon),
           ),
           const SizedBox(height: AppSpacing.lg),
           AuthTextField(
-            label: 'Phone Number *',
-            hint: AuthConstants.phonePlaceholder,
+            label: '${l10n.phoneNumber} *',
+            hint: l10n.phonePlaceholder,
             controller: _phone,
             keyboardType: TextInputType.phone,
-            validator: AuthConstants.validateEthiopianPhone,
+            validator: (v) {
+              if (v == null || v.trim().isEmpty) return l10n.required;
+              if (AuthConstants.validateEthiopianPhone(v) != null) {
+                return l10n.phoneFormatHint;
+              }
+              return null;
+            },
             maxLength: AuthConstants.maxPhoneLength,
             prefixIcon: const Icon(Icons.call, color: AppColors.inputIcon),
           ),
           const SizedBox(height: AppSpacing.lg),
           AuthTextField(
-            label: 'Email Address *',
+            label: '${l10n.emailAddress} *',
             controller: _email,
             keyboardType: TextInputType.emailAddress,
-            validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+            validator: (v) =>
+                v == null || v.trim().isEmpty ? l10n.required : null,
             maxLength: AuthConstants.maxEmailLength,
             prefixIcon: const Icon(
               Icons.mail_outline,
               color: AppColors.inputIcon,
             ),
           ),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: _otpRequestInFlight
+                      ? null
+                      : () {
+                          if (_formKey.currentState?.validate() ?? false) {
+                            context.read<AuthBloc>().add(
+                              AuthGarageSignupOtpRequested(
+                                garageName: _garageName.text.trim(),
+                                phone: _phone.text.trim(),
+                                email: _email.text.trim(),
+                                password: _password.text,
+                                confirmPassword: _confirmPassword.text,
+                              ),
+                            );
+                            setState(() {
+                              _otpRequested = true;
+                            });
+                          }
+                        },
+                  child: Text(_otpRequested ? l10n.resendOtp : l10n.sendOtp),
+                ),
+              ),
+            ],
+          ),
+          if (_otpRequested) ...[
+            const SizedBox(height: AppSpacing.md),
+            AuthTextField(
+              label: '${l10n.emailOtp} *',
+              hint: l10n.otpHint,
+              controller: _otpCode,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton(
+                    onPressed: _otpVerifyInFlight || _isEmailVerified
+                        ? null
+                        : () {
+                            final code = _otpCode.text.trim();
+                            if (code.length != 6) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(l10n.otpMustBe6Digits),
+                                ),
+                              );
+                              return;
+                            }
+                            context.read<AuthBloc>().add(
+                              AuthGarageSignupOtpVerified(
+                                garageName: _garageName.text.trim(),
+                                phone: _phone.text.trim(),
+                                email: _email.text.trim(),
+                                password: _password.text,
+                                confirmPassword: _confirmPassword.text,
+                                code: code,
+                              ),
+                            );
+                          },
+                    child: Text(
+                      _isEmailVerified ? l10n.emailVerified : l10n.verifyOtp,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (_otpExpiresInMinutes != null)
+              Padding(
+                padding: const EdgeInsets.only(top: AppSpacing.xs),
+                child: Text(
+                  l10n.otpExpiresIn(_otpExpiresInMinutes!),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+          ],
           const SizedBox(height: AppSpacing.lg),
           AuthTextField(
-            label: 'Password *',
-            hint: AuthConstants.passwordPlaceholder,
+            label: '${l10n.password} *',
+            hint: l10n.passwordPlaceholder,
             controller: _password,
             obscureText: true,
             validator: (v) {
-              if (v == null || v.isEmpty) return 'Required';
+              if (v == null || v.isEmpty) return l10n.required;
               if (v.length < AuthConstants.minPasswordLength) {
-                return 'At least ${AuthConstants.minPasswordLength} characters';
+                return l10n.passwordMinLength(AuthConstants.minPasswordLength);
               }
               return null;
             },
@@ -309,46 +465,40 @@ class _Step1ContentState extends State<_Step1Content> {
           ),
           const SizedBox(height: AppSpacing.lg),
           AuthTextField(
-            label: 'Confirm Password *',
-            hint: AuthConstants.confirmPasswordPlaceholder,
+            label: '${l10n.confirmPassword} *',
+            hint: l10n.confirmPasswordPlaceholder,
             controller: _confirmPassword,
             obscureText: true,
             validator: (v) {
-              if (v == null || v.isEmpty) return 'Required';
-              if (v != _password.text) return 'Passwords do not match';
+              if (v == null || v.isEmpty) return l10n.required;
+              if (v != _password.text) return l10n.passwordsDoNotMatch;
               return null;
             },
           ),
           const SizedBox(height: AppSpacing.xl),
-          FilledButton(
+          AuthPrimaryButton(
+            label: l10n.continueButton,
             onPressed: () {
               if (_formKey.currentState?.validate() ?? false) {
+                if (!_isEmailVerified) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(l10n.verifyOtpFirst)),
+                  );
+                  return;
+                }
                 context.read<AuthBloc>().add(
-                  AuthRegistrationStep1Next(
-                    garageName: _garageName.text.trim(),
-                    phone: _phone.text.trim(),
-                    email: _email.text.trim(),
-                    password: _password.text,
-                    confirmPassword: _confirmPassword.text,
-                  ),
-                );
+                      AuthRegistrationStep1Next(
+                        garageName: _garageName.text.trim(),
+                        phone: _phone.text.trim(),
+                        email: _email.text.trim(),
+                        password: _password.text,
+                        confirmPassword: _confirmPassword.text,
+                        isEmailVerified: _isEmailVerified,
+                      ),
+                    );
               }
             },
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.primaryButtonText,
-              padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppBorderRadius.md),
-              ),
-            ),
-            child: const Text(
-              'Continue',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
           ),
-          const SizedBox(height: AppSpacing.xxl),
         ],
       ),
     );
@@ -356,10 +506,7 @@ class _Step1ContentState extends State<_Step1Content> {
 }
 
 class _Step2Content extends StatefulWidget {
-  const _Step2Content({
-    required this.step1Data,
-    this.restoreStep2,
-  });
+  const _Step2Content({required this.step1Data, this.restoreStep2});
 
   final RegistrationStep1Data step1Data;
   final RegistrationStep2Data? restoreStep2;
@@ -404,18 +551,19 @@ class _Step2ContentState extends State<_Step2Content> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _SectionHeader(
           icon: Icons.location_on_outlined,
-          title: 'Location & Services',
-          subtitle: 'Where are you located and what do you offer?',
+          title: l10n.locationAndServices,
+          subtitle: l10n.locationServicesSubtitle,
           useSquareIcon: true,
         ),
         const SizedBox(height: AppSpacing.lg),
         LocationPickerField(
-          label: 'Garage Address *',
+          label: '${l10n.garageAddress} *',
           controller: _addressController,
           initialLat: _pickedLat,
           initialLng: _pickedLng,
@@ -433,19 +581,21 @@ class _Step2ContentState extends State<_Step2Content> {
           Padding(
             padding: const EdgeInsets.only(top: AppSpacing.sm),
             child: Text(
-              AuthConstants.mapSetExactLocationHint,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
+              l10n.mapSetExactLocationHint,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
             ),
           ),
         const SizedBox(height: AppSpacing.lg),
         Text(
-          'Services Offered *',
+          '${l10n.servicesOffered} *',
           style: Theme.of(context).textTheme.titleSmall,
         ),
         Text(
-          '${_selectedServices.length + _customServiceNames.length} selected',
+          l10n.selectedCount(
+            _selectedServices.length + _customServiceNames.length,
+          ),
           style: Theme.of(context).textTheme.bodySmall,
         ),
         const SizedBox(height: AppSpacing.sm),
@@ -453,7 +603,8 @@ class _Step2ContentState extends State<_Step2Content> {
           selectedServices: _selectedServices,
           onSelectionChanged: (v) => setState(() => _selectedServices = v),
           customServiceNames: _customServiceNames,
-          onCustomServiceNamesChanged: (v) => setState(() => _customServiceNames = v),
+          onCustomServiceNamesChanged: (v) =>
+              setState(() => _customServiceNames = v),
         ),
         const SizedBox(height: AppSpacing.xl),
         Row(
@@ -471,34 +622,28 @@ class _Step2ContentState extends State<_Step2Content> {
                     borderRadius: BorderRadius.circular(AppBorderRadius.md),
                   ),
                 ),
-                child: const Text('Back'),
+                child: Text(l10n.back),
               ),
             ),
             const SizedBox(width: AppSpacing.md),
             Expanded(
               child: FilledButton(
-                onPressed: (_selectedServices.isEmpty && _customServiceNames.isEmpty) ||
+                onPressed:
+                    (_selectedServices.isEmpty &&
+                            _customServiceNames.isEmpty) ||
                         _pickedLat == null ||
                         _pickedLng == null
                     ? null
                     : () {
                         if (_addressController.text.trim().isEmpty) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                AuthConstants.addressRequiredMessage,
-                              ),
-                            ),
+                            SnackBar(content: Text(l10n.addressRequired)),
                           );
                           return;
                         }
                         if (_pickedLat == null || _pickedLng == null) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                AuthConstants.locationRequiredMessage,
-                              ),
-                            ),
+                            SnackBar(content: Text(l10n.locationRequired)),
                           );
                           return;
                         }
@@ -527,7 +672,7 @@ class _Step2ContentState extends State<_Step2Content> {
                     borderRadius: BorderRadius.circular(AppBorderRadius.md),
                   ),
                 ),
-                child: const Text('Continue'),
+                child: Text(l10n.continueButton),
               ),
             ),
           ],
@@ -557,22 +702,24 @@ class _Step3ContentState extends State<_Step3Content> {
   Uint8List? _documentBytes;
   String? _documentFileName;
 
-  bool get _hasDocument => (_documentBytes != null && _documentBytes!.isNotEmpty) ||
+  bool get _hasDocument =>
+      (_documentBytes != null && _documentBytes!.isNotEmpty) ||
       (_documentPath != null && _documentPath!.isNotEmpty);
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _SectionHeader(
           icon: Icons.upload_file,
-          title: 'Verification',
-          subtitle: 'Upload your business documents',
+          title: l10n.verification,
+          subtitle: l10n.uploadBusinessDocuments,
           useSquareIcon: true,
         ),
         const SizedBox(height: AppSpacing.lg),
-        const Text('Business License *'),
+        Text('${l10n.businessLicense} *'),
         const SizedBox(height: AppSpacing.sm),
         DocumentUploadButton(
           filePath: _documentFileName ?? _documentPath,
@@ -597,7 +744,9 @@ class _Step3ContentState extends State<_Step3Content> {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
-                    'Unable to open file picker. ${toUserFriendlyMessage(e.toString())}',
+                    l10n.filePickerError(
+                      toUserFriendlyMessage(e.toString(), l10n),
+                    ),
                   ),
                 ),
               );
@@ -606,30 +755,36 @@ class _Step3ContentState extends State<_Step3Content> {
         ),
         const SizedBox(height: AppSpacing.xl),
         Text(
-          'Review Your Information',
+          l10n.reviewYourInformation,
           style: Theme.of(
             context,
           ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: AppSpacing.sm),
-        _ReviewRow(label: 'Garage Name', value: widget.step1Data.garageName),
-        _ReviewRow(label: 'Phone', value: widget.step1Data.phone),
-        _ReviewRow(label: 'Email', value: widget.step1Data.email),
         _ReviewRow(
-          label: 'Services',
+          label: l10n.garageName,
+          value: widget.step1Data.garageName,
+        ),
+        _ReviewRow(label: l10n.phone, value: widget.step1Data.phone),
+        _ReviewRow(label: l10n.email, value: widget.step1Data.email),
+        _ReviewRow(
+          label: l10n.services,
           value: () {
-            final extra = widget.step2Data.otherServices
+            final extra =
+                widget.step2Data.otherServices
                     ?.split(RegExp(r',\s*'))
                     .map((s) => s.trim())
                     .where((s) => s.isNotEmpty)
                     .length ??
                 0;
-            return '${widget.step2Data.services.length + extra} selected';
+            return l10n.selectedCount(
+              widget.step2Data.services.length + extra,
+            );
           }(),
         ),
         const SizedBox(height: AppSpacing.md),
         Text(
-          "Almost done! Your application will be reviewed within ${AuthConstants.expectedApprovalTime}. You'll receive an email as soon as it's approved.",
+          l10n.almostDone(l10n.expectedApprovalTime),
           style: Theme.of(context).textTheme.bodySmall,
         ),
         const SizedBox(height: AppSpacing.xl),
@@ -648,7 +803,7 @@ class _Step3ContentState extends State<_Step3Content> {
                     borderRadius: BorderRadius.circular(AppBorderRadius.md),
                   ),
                 ),
-                child: const Text('Back'),
+                child: Text(l10n.back),
               ),
             ),
             const SizedBox(width: AppSpacing.md),
@@ -657,11 +812,7 @@ class _Step3ContentState extends State<_Step3Content> {
                 onPressed: () {
                   if (!_hasDocument) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Please upload your business license (PDF, PNG or JPG)',
-                        ),
-                      ),
+                      SnackBar(content: Text(l10n.uploadLicenseRequired)),
                     );
                     return;
                   }
@@ -682,7 +833,7 @@ class _Step3ContentState extends State<_Step3Content> {
                     borderRadius: BorderRadius.circular(AppBorderRadius.md),
                   ),
                 ),
-                child: const Text('Submit Application'),
+                child: Text(l10n.submitApplication),
               ),
             ),
           ],
@@ -756,6 +907,7 @@ class _ReviewRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.xs),
       child: Row(
@@ -764,7 +916,7 @@ class _ReviewRow extends StatelessWidget {
           SizedBox(
             width: 100,
             child: Text(
-              '$label:',
+              l10n.labelColon(label),
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),
@@ -788,6 +940,7 @@ class _SubmissionSuccessModal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Stack(
       alignment: Alignment.center,
       children: [
@@ -810,7 +963,7 @@ class _SubmissionSuccessModal extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 Text(
-                  'Application Submitted!',
+                  l10n.applicationSubmitted,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -818,13 +971,13 @@ class _SubmissionSuccessModal extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.md),
                 Text(
-                  'Thank you for registering, $garageName! Your application is now under review. Once approved by our admin team, your garage will appear on the driver\'s map and you can start receiving service requests.',
+                  l10n.applicationSubmittedBody(garageName),
                   style: Theme.of(context).textTheme.bodyMedium,
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
-                  'Expected approval time: ${AuthConstants.expectedApprovalTime}. You\'ll receive an email as a notification once your account is approved.',
+                  l10n.expectedApproval(l10n.expectedApprovalTime),
                   style: Theme.of(context).textTheme.bodySmall,
                   textAlign: TextAlign.center,
                 ),
@@ -844,7 +997,7 @@ class _SubmissionSuccessModal extends StatelessWidget {
                         borderRadius: BorderRadius.circular(AppBorderRadius.md),
                       ),
                     ),
-                    child: const Text('Got It'),
+                    child: Text(l10n.gotIt),
                   ),
                 ),
               ],

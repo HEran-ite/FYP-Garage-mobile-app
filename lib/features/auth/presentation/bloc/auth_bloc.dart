@@ -1,14 +1,15 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/constants/auth_constants.dart';
-import '../../../../core/error/user_friendly_errors.dart';
 import '../../domain/entities/registration_entity.dart';
 import '../../domain/usecases/clear_session_usecase.dart';
 import '../../domain/usecases/login_usecase.dart';
+import '../../domain/usecases/request_garage_signup_otp_usecase.dart';
 import '../../domain/usecases/register_usecase.dart';
 import '../../domain/usecases/restore_session_usecase.dart';
 import '../../domain/usecases/update_garage_services_usecase.dart';
 import '../../domain/usecases/update_profile_usecase.dart';
+import '../../domain/usecases/verify_garage_signup_otp_usecase.dart';
 import 'auth_event.dart';
 import 'auth_state.dart';
 
@@ -16,23 +17,29 @@ import 'auth_state.dart';
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   AuthBloc({
     required LoginUseCase loginUseCase,
+    required RequestGarageSignupOtpUseCase requestGarageSignupOtpUseCase,
+    required VerifyGarageSignupOtpUseCase verifyGarageSignupOtpUseCase,
     required RegisterUseCase registerUseCase,
     required UpdateProfileUseCase updateProfileUseCase,
     required UpdateGarageServicesUseCase updateGarageServicesUseCase,
     required RestoreSessionUseCase restoreSessionUseCase,
     required ClearSessionUseCase clearSessionUseCase,
-  })  : _loginUseCase = loginUseCase,
-        _registerUseCase = registerUseCase,
-        _updateProfileUseCase = updateProfileUseCase,
-        _updateGarageServicesUseCase = updateGarageServicesUseCase,
-        _restoreSessionUseCase = restoreSessionUseCase,
-        _clearSessionUseCase = clearSessionUseCase,
-        super(const AuthInitial()) {
+  }) : _loginUseCase = loginUseCase,
+       _requestGarageSignupOtpUseCase = requestGarageSignupOtpUseCase,
+       _verifyGarageSignupOtpUseCase = verifyGarageSignupOtpUseCase,
+       _registerUseCase = registerUseCase,
+       _updateProfileUseCase = updateProfileUseCase,
+       _updateGarageServicesUseCase = updateGarageServicesUseCase,
+       _restoreSessionUseCase = restoreSessionUseCase,
+       _clearSessionUseCase = clearSessionUseCase,
+       super(const AuthInitial()) {
     on<AuthLoginRequested>(_onLoginRequested);
     on<AuthRestoreSession>(_onRestoreSession);
     on<AuthRefreshProfileRequested>(_onRefreshProfileRequested);
     on<AuthRegistrationStarted>(_onRegistrationStarted);
     on<AuthRegistrationStep1Next>(_onRegistrationStep1Next);
+    on<AuthGarageSignupOtpRequested>(_onGarageSignupOtpRequested);
+    on<AuthGarageSignupOtpVerified>(_onGarageSignupOtpVerified);
     on<AuthRegistrationStep2Next>(_onRegistrationStep2Next);
     on<AuthRegistrationStep2Back>(_onRegistrationStep2Back);
     on<AuthRegistrationStep3Back>(_onRegistrationStep3Back);
@@ -46,6 +53,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   final LoginUseCase _loginUseCase;
+  final RequestGarageSignupOtpUseCase _requestGarageSignupOtpUseCase;
+  final VerifyGarageSignupOtpUseCase _verifyGarageSignupOtpUseCase;
   final RegisterUseCase _registerUseCase;
   final UpdateProfileUseCase _updateProfileUseCase;
   final UpdateGarageServicesUseCase _updateGarageServicesUseCase;
@@ -62,7 +71,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       password: event.password,
     );
     result.fold(
-      (failure) => emit(AuthLoginError(toUserFriendlyMessage(failure.message))),
+      (failure) => emit(AuthLoginError(failure.message)),
       (user) => emit(AuthLoginSuccess(user)),
     );
   }
@@ -78,13 +87,105 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthRegistrationStep1Next event,
     Emitter<AuthState> emit,
   ) {
-    emit(AuthRegistrationStep2(RegistrationStep1Data(
+    if (!event.isEmailVerified) {
+      emit(
+        AuthRegistrationError(
+          'Please verify your email OTP before continuing.',
+          step1Data: RegistrationStep1Data(
+            garageName: event.garageName,
+            phone: event.phone,
+            email: event.email,
+            password: event.password,
+            confirmPassword: event.confirmPassword,
+            otpRequested: true,
+            isEmailVerified: false,
+          ),
+        ),
+      );
+      return;
+    }
+    emit(
+      AuthRegistrationStep2(
+        RegistrationStep1Data(
+          garageName: event.garageName,
+          phone: event.phone,
+          email: event.email,
+          password: event.password,
+          confirmPassword: event.confirmPassword,
+          otpRequested: true,
+          isEmailVerified: event.isEmailVerified,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _onGarageSignupOtpRequested(
+    AuthGarageSignupOtpRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    final stepData = RegistrationStep1Data(
       garageName: event.garageName,
       phone: event.phone,
       email: event.email,
       password: event.password,
       confirmPassword: event.confirmPassword,
-    )));
+      otpRequested: true,
+      otpRequestInFlight: true,
+    );
+    emit(AuthRegistrationStep1(restore: stepData));
+    final result = await _requestGarageSignupOtpUseCase(email: event.email);
+    result.fold(
+      (failure) => emit(
+        AuthRegistrationError(
+          failure.message,
+          step1Data: stepData.copyWith(otpRequestInFlight: false),
+        ),
+      ),
+      (expiresIn) => emit(
+        AuthRegistrationStep1(
+          restore: stepData.copyWith(
+            otpRequestInFlight: false,
+            otpExpiresInMinutes: expiresIn,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _onGarageSignupOtpVerified(
+    AuthGarageSignupOtpVerified event,
+    Emitter<AuthState> emit,
+  ) async {
+    final stepData = RegistrationStep1Data(
+      garageName: event.garageName,
+      phone: event.phone,
+      email: event.email,
+      password: event.password,
+      confirmPassword: event.confirmPassword,
+      otpRequested: true,
+      otpVerifyInFlight: true,
+    );
+    emit(AuthRegistrationStep1(restore: stepData));
+    final result = await _verifyGarageSignupOtpUseCase(
+      email: event.email,
+      code: event.code,
+    );
+    result.fold(
+      (failure) => emit(
+        AuthRegistrationError(
+          failure.message,
+          step1Data: stepData.copyWith(otpVerifyInFlight: false),
+        ),
+      ),
+      (_) => emit(
+        AuthRegistrationStep1(
+          restore: stepData.copyWith(
+            otpVerifyInFlight: false,
+            isEmailVerified: true,
+          ),
+        ),
+      ),
+    );
   }
 
   void _onRegistrationStep2Next(
@@ -93,14 +194,19 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) {
     final state = this.state;
     if (state is! AuthRegistrationStep2) return;
-    emit(AuthRegistrationStep3(state.step1Data, RegistrationStep2Data(
-      address: event.address,
-      services: event.services,
-      otherServices: event.otherServices,
-      latitude: event.latitude,
-      longitude: event.longitude,
-      placeId: event.placeId,
-    )));
+    emit(
+      AuthRegistrationStep3(
+        state.step1Data,
+        RegistrationStep2Data(
+          address: event.address,
+          services: event.services,
+          otherServices: event.otherServices,
+          latitude: event.latitude,
+          longitude: event.longitude,
+          placeId: event.placeId,
+        ),
+      ),
+    );
   }
 
   void _onRegistrationStep2Back(
@@ -121,26 +227,23 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) {
     final state = this.state;
     if (state is AuthRegistrationStep3) {
-      emit(AuthRegistrationStep2(
-        state.step1Data,
-        restoreStep2: state.step2Data,
-      ));
+      emit(
+        AuthRegistrationStep2(state.step1Data, restoreStep2: state.step2Data),
+      );
       return;
     }
     if (state is AuthRegistrationSubmitting) {
-      emit(AuthRegistrationStep2(
-        state.step1Data,
-        restoreStep2: state.step2Data,
-      ));
+      emit(
+        AuthRegistrationStep2(state.step1Data, restoreStep2: state.step2Data),
+      );
       return;
     }
     if (state is AuthRegistrationError &&
         state.step1Data != null &&
         state.step2Data != null) {
-      emit(AuthRegistrationStep2(
-        state.step1Data!,
-        restoreStep2: state.step2Data,
-      ));
+      emit(
+        AuthRegistrationStep2(state.step1Data!, restoreStep2: state.step2Data),
+      );
     }
   }
 
@@ -183,11 +286,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       licenseFileName: event.businessLicenseFileName,
     );
     result.fold(
-      (failure) => emit(AuthRegistrationError(
-        toUserFriendlyMessage(failure.message),
-        step1Data: s1,
-        step2Data: s2,
-      )),
+      (failure) => emit(
+        AuthRegistrationError(
+          failure.message,
+          step1Data: s1,
+          step2Data: s2,
+        ),
+      ),
       (user) => emit(AuthRegistrationSuccess(user, s1.garageName)),
     );
   }
@@ -263,7 +368,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(AuthProfileUpdating(user));
     final result = await _updateProfileUseCase(user);
     result.fold(
-      (failure) => emit(AuthProfileUpdateError(toUserFriendlyMessage(failure.message), user)),
+      (failure) => emit(
+        AuthProfileUpdateError(failure.message, user),
+      ),
       (updatedUser) => emit(AuthLoginSuccess(updatedUser)),
     );
   }
@@ -284,7 +391,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       event.otherServices,
     );
     result.fold(
-      (failure) => emit(AuthProfileUpdateError(toUserFriendlyMessage(failure.message), user)),
+      (failure) => emit(
+        AuthProfileUpdateError(failure.message, user),
+      ),
       (updatedUser) => emit(AuthLoginSuccess(updatedUser)),
     );
   }

@@ -10,6 +10,11 @@ class RegistrationStep1Data extends Equatable {
     required this.email,
     required this.password,
     required this.confirmPassword,
+    this.otpRequested = false,
+    this.isEmailVerified = false,
+    this.otpRequestInFlight = false,
+    this.otpVerifyInFlight = false,
+    this.otpExpiresInMinutes,
   });
 
   final String garageName;
@@ -17,9 +22,51 @@ class RegistrationStep1Data extends Equatable {
   final String email;
   final String password;
   final String confirmPassword;
+  final bool otpRequested;
+  final bool isEmailVerified;
+  final bool otpRequestInFlight;
+  final bool otpVerifyInFlight;
+  final int? otpExpiresInMinutes;
+
+  RegistrationStep1Data copyWith({
+    String? garageName,
+    String? phone,
+    String? email,
+    String? password,
+    String? confirmPassword,
+    bool? otpRequested,
+    bool? isEmailVerified,
+    bool? otpRequestInFlight,
+    bool? otpVerifyInFlight,
+    int? otpExpiresInMinutes,
+  }) {
+    return RegistrationStep1Data(
+      garageName: garageName ?? this.garageName,
+      phone: phone ?? this.phone,
+      email: email ?? this.email,
+      password: password ?? this.password,
+      confirmPassword: confirmPassword ?? this.confirmPassword,
+      otpRequested: otpRequested ?? this.otpRequested,
+      isEmailVerified: isEmailVerified ?? this.isEmailVerified,
+      otpRequestInFlight: otpRequestInFlight ?? this.otpRequestInFlight,
+      otpVerifyInFlight: otpVerifyInFlight ?? this.otpVerifyInFlight,
+      otpExpiresInMinutes: otpExpiresInMinutes ?? this.otpExpiresInMinutes,
+    );
+  }
 
   @override
-  List<Object?> get props => [garageName, phone, email, password, confirmPassword];
+  List<Object?> get props => [
+    garageName,
+    phone,
+    email,
+    password,
+    confirmPassword,
+    otpRequested,
+    isEmailVerified,
+    otpRequestInFlight,
+    otpVerifyInFlight,
+    otpExpiresInMinutes,
+  ];
 }
 
 /// Step 2 form data (location & services)
@@ -41,7 +88,14 @@ class RegistrationStep2Data extends Equatable {
   final String? placeId;
 
   @override
-  List<Object?> get props => [address, services, otherServices, latitude, longitude, placeId];
+  List<Object?> get props => [
+    address,
+    services,
+    otherServices,
+    latitude,
+    longitude,
+    placeId,
+  ];
 }
 
 /// Auth BLoC states
@@ -147,11 +201,7 @@ class AuthRegistrationSuccess extends AuthState {
 
 /// Registration failed. Optional [step1Data] and [step2Data] keep user on step 3 to retry.
 class AuthRegistrationError extends AuthState {
-  const AuthRegistrationError(
-    this.message, {
-    this.step1Data,
-    this.step2Data,
-  });
+  const AuthRegistrationError(this.message, {this.step1Data, this.step2Data});
 
   final String message;
   final RegistrationStep1Data? step1Data;

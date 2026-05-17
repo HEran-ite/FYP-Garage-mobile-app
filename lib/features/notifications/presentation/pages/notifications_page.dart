@@ -3,58 +3,22 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/constants/border_radius.dart';
 import '../../../../core/constants/spacing.dart';
+import '../../../../core/error/user_friendly_errors.dart';
+import '../../../../core/locale/date_localization.dart';
+import '../../../../core/locale/l10n_extension.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../domain/entities/notification_entity.dart';
 import '../bloc/notification_bloc.dart';
 import '../bloc/notification_event.dart';
 import '../bloc/notification_state.dart';
 
-String _timeAgo(DateTime? dateTime) {
-  if (dateTime == null) return '';
-  final diff = DateTime.now().difference(dateTime);
-  if (diff.inSeconds < 45) return 'Just now';
-  if (diff.inMinutes < 60) {
-    final mins = diff.inMinutes;
-    return mins == 1 ? '1 min ago' : '$mins mins ago';
-  }
-  if (diff.inHours < 24) {
-    final hours = diff.inHours;
-    return hours == 1 ? '1 hour ago' : '$hours hours ago';
-  }
-  if (diff.inDays == 1) return 'Yesterday';
-  if (diff.inDays < 7) return '${diff.inDays} days ago';
-  if (diff.inDays < 365) {
-    final m = _monthShort(dateTime.month);
-    return '$m ${dateTime.day}, ${_formatHourMinute(dateTime)}';
-  }
-  final m = _monthShort(dateTime.month);
-  return '$m ${dateTime.day}, ${dateTime.year}';
-}
-
-String _monthShort(int month) {
-  const names = <String>[
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
-  return (month >= 1 && month <= 12) ? names[month - 1] : '';
-}
-
-String _formatHourMinute(DateTime dateTime) {
+String _formatHourMinute(DateTime dateTime, AppLocalizations l10n) {
   final hour24 = dateTime.hour;
   final minute = dateTime.minute.toString().padLeft(2, '0');
   final isPm = hour24 >= 12;
   final hour12 = hour24 % 12 == 0 ? 12 : hour24 % 12;
-  final period = isPm ? 'PM' : 'AM';
+  final period = isPm ? l10n.pm : l10n.am;
   return '$hour12:$minute $period';
 }
 
@@ -104,21 +68,29 @@ bool _isNewAppointmentText(NotificationEntity notification) {
       haystack.contains('requested an appointment');
 }
 
-String _friendlyNotificationTitle(NotificationEntity notification) {
+String _friendlyNotificationTitle(
+  NotificationEntity notification,
+  AppLocalizations l10n,
+) {
   if (_isNewAppointmentText(notification)) {
-    return 'New appointment request';
+    return l10n.newAppointmentRequest;
   }
   return _sanitizeNotificationText(notification.title);
 }
 
-String _friendlyNotificationBody(NotificationEntity notification) {
+String _friendlyNotificationBody(
+  NotificationEntity notification,
+  AppLocalizations l10n,
+) {
   if (_isNewAppointmentText(notification)) {
     final at = _extractIsoDateTime(notification.body);
     if (at != null) {
-      return 'A driver requested an appointment for '
-          '${_monthShort(at.month)} ${at.day} at ${_formatHourMinute(at)}.';
+      final months = localizedMonthNames(l10n);
+      final dateStr =
+          '${months[at.month - 1]} ${at.day} at ${_formatHourMinute(at, l10n)}';
+      return l10n.newAppointmentRequestBody(dateStr);
     }
-    return 'A driver requested a new appointment. Open Appointments to review it.';
+    return l10n.newAppointmentRequestBodyGeneric;
   }
   return _sanitizeNotificationText(notification.body);
 }
@@ -159,6 +131,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -180,14 +153,14 @@ class _NotificationsPageState extends State<NotificationsPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'Notifications',
+                  l10n.notificationsTitle,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: AppColors.textPrimary,
                   ),
                 ),
                 Text(
-                  '$unread unread',
+                  l10n.unreadCount(unread),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: AppColors.textSecondary,
                   ),
@@ -209,7 +182,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                       .add(const MarkAllNotificationsRead());
                 },
                 child: Text(
-                  'Mark all as read',
+                  l10n.markAllRead,
                   style: TextStyle(
                     color: AppColors.primary,
                     fontWeight: FontWeight.w600,
@@ -243,7 +216,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      state.message,
+                      toUserFriendlyMessage(state.message, l10n),
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: AppColors.textSecondary,
@@ -257,7 +230,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                             .add(const LoadNotifications());
                       },
                       icon: const Icon(Icons.refresh, size: 20),
-                      label: const Text('Retry'),
+                      label: Text(l10n.retry),
                       style: TextButton.styleFrom(
                         foregroundColor: AppColors.primary,
                       ),
@@ -272,7 +245,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
             if (list.isEmpty) {
               return Center(
                 child: Text(
-                  'No notifications yet',
+                  l10n.noNotificationsYet,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         color: AppColors.textSecondary,
                       ),
@@ -328,6 +301,7 @@ class _NotificationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final style = _styleFor(notification.type);
     final isUnread = !notification.read;
 
@@ -366,7 +340,7 @@ class _NotificationCard extends StatelessWidget {
                         children: [
                           Expanded(
                             child: Text(
-                              _friendlyNotificationTitle(notification),
+                              _friendlyNotificationTitle(notification, l10n),
                               style: Theme.of(context).textTheme.titleSmall?.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: AppColors.textPrimary,
@@ -386,7 +360,7 @@ class _NotificationCard extends StatelessWidget {
                       ),
                       const SizedBox(height: AppSpacing.xs),
                       Text(
-                        _friendlyNotificationBody(notification),
+                        _friendlyNotificationBody(notification, l10n),
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: AppColors.textSecondary,
                         ),
@@ -402,7 +376,7 @@ class _NotificationCard extends StatelessWidget {
                             ),
                             const SizedBox(width: AppSpacing.xs),
                             Text(
-                              _timeAgo(notification.timestamp),
+                              formatRelativeTime(l10n, notification.timestamp!),
                               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                 color: AppColors.textSecondary,
                               ),

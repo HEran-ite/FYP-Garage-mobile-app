@@ -2,9 +2,9 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
-import '../../../../core/constants/auth_constants.dart';
 import '../../../../core/constants/border_radius.dart';
 import '../../../../core/constants/spacing.dart';
+import '../../../../core/locale/l10n_extension.dart';
 import '../../../../core/theme/app_colors.dart';
 
 /// Button to upload a document (e.g. business license) - dashed border, sleek
@@ -16,6 +16,7 @@ class DocumentUploadButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -52,14 +53,14 @@ class DocumentUploadButton extends StatelessWidget {
                     Text(
                       filePath != null
                           ? _shortName(filePath!)
-                          : AuthConstants.uploadDocumentLabel,
+                          : l10n.uploadDocument,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: AppColors.textSecondary,
                       ),
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      AuthConstants.supportedDocumentFormats,
+                      l10n.supportedDocumentFormats,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppColors.textSecondary,
                       ),

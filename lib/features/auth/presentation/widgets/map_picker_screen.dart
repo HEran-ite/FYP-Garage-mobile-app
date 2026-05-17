@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 
-import '../../../../core/constants/auth_constants.dart';
 import '../../../../core/constants/spacing.dart';
+import '../../../../core/locale/l10n_extension.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../data/datasources/places_remote_datasource.dart';
 
@@ -47,9 +47,8 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       _showLocationSnackBar(
-        message:
-            'Location services are turned off. Turn on device location to use your current position.',
-        actionLabel: 'Settings',
+        message: context.l10n.locationOff,
+        actionLabel: context.l10n.settings,
         onAction: Geolocator.openLocationSettings,
       );
       return;
@@ -62,9 +61,8 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
 
     if (permission == LocationPermission.denied) {
       _showLocationSnackBar(
-        message:
-            'Location permission was denied. Enable it in app settings to use your current position.',
-        actionLabel: 'Settings',
+        message: context.l10n.locationDenied,
+        actionLabel: context.l10n.settings,
         onAction: Geolocator.openAppSettings,
       );
       return;
@@ -72,9 +70,8 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
 
     if (permission == LocationPermission.deniedForever) {
       _showLocationSnackBar(
-        message:
-            'Location permission is permanently denied. Open app settings to allow location access.',
-        actionLabel: 'Settings',
+        message: context.l10n.locationPermanentlyDenied,
+        actionLabel: context.l10n.settings,
         onAction: Geolocator.openAppSettings,
       );
       return;
@@ -137,20 +134,21 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
   }
 
   Future<void> _onDone() async {
+    final l10n = context.l10n;
     // Show loading while fetching address
     showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(
+      builder: (dialogContext) => Center(
         child: Card(
           child: Padding(
-            padding: EdgeInsets.all(AppSpacing.lg),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                CircularProgressIndicator(),
-                SizedBox(height: AppSpacing.md),
-                Text(AuthConstants.mapLoadingAddress),
+                const CircularProgressIndicator(),
+                const SizedBox(height: AppSpacing.md),
+                Text(l10n.mapLoadingAddress),
               ],
             ),
           ),
@@ -165,7 +163,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
     Navigator.of(context).pop(); // dismiss loading dialog
     final addressDisplay = address?.trim().isNotEmpty == true
         ? address!
-        : AuthConstants.mapAddressUnavailable;
+        : l10n.mapAddressUnavailable;
 
     if (!mounted) return;
     showModalBottomSheet<void>(
@@ -174,7 +172,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (context) => SafeArea(
+      builder: (sheetContext) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.lg),
           child: Column(
@@ -182,8 +180,8 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                AuthConstants.mapConfirmLocationTitle,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                l10n.mapConfirmLocationTitle,
+                style: Theme.of(sheetContext).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: AppColors.textPrimary,
                     ),
@@ -191,21 +189,21 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
               const SizedBox(height: AppSpacing.sm),
               Text(
                 addressDisplay,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                style: Theme.of(sheetContext).textTheme.bodyMedium?.copyWith(
                       color: AppColors.textPrimary,
                     ),
               ),
               const SizedBox(height: AppSpacing.md),
               Text(
-                AuthConstants.mapDriverVisibilityMessage,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                l10n.mapDriverVisibility,
+                style: Theme.of(sheetContext).textTheme.bodySmall?.copyWith(
                       color: AppColors.textSecondary,
                     ),
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                AuthConstants.mapSetCarefullyMessage,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                l10n.mapSetCarefully,
+                style: Theme.of(sheetContext).textTheme.bodySmall?.copyWith(
                       color: AppColors.textSecondary,
                       fontWeight: FontWeight.w500,
                     ),
@@ -215,7 +213,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: () => Navigator.of(context).pop(),
+                      onPressed: () => Navigator.of(sheetContext).pop(),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.textPrimary,
                         side: const BorderSide(color: AppColors.inputBorder),
@@ -223,16 +221,14 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                           vertical: AppSpacing.md,
                         ),
                       ),
-                      child: const Text(
-                        AuthConstants.mapChangeLocationButton,
-                      ),
+                      child: Text(l10n.mapChangeLocation),
                     ),
                   ),
                   const SizedBox(width: AppSpacing.md),
                   Expanded(
                     child: FilledButton(
                       onPressed: () {
-                        Navigator.of(context).pop();
+                        Navigator.of(sheetContext).pop();
                         Navigator.of(context).pop(_position);
                       },
                       style: FilledButton.styleFrom(
@@ -242,7 +238,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                           vertical: AppSpacing.md,
                         ),
                       ),
-                      child: const Text(AuthConstants.mapConfirmButton),
+                      child: Text(l10n.mapConfirm),
                     ),
                   ),
                 ],
@@ -256,9 +252,10 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Scaffold(
       appBar: AppBar(
-        title: const Text(AuthConstants.mapSelectLocationAppBarTitle),
+        title: Text(l10n.mapSelectLocation),
         backgroundColor: AppColors.surface,
         foregroundColor: AppColors.textPrimary,
         actions: [
@@ -266,7 +263,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
             padding: const EdgeInsets.only(right: AppSpacing.sm),
             child: TextButton(
               onPressed: _onDone,
-              child: const Text('Done'),
+              child: Text(l10n.done),
             ),
           ),
         ],
@@ -302,7 +299,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
             left: AppSpacing.lg,
             right: AppSpacing.lg,
             child: Text(
-              AuthConstants.mapDragOrTapHint,
+              l10n.mapDragOrTap,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: AppColors.textPrimary,
                     backgroundColor: AppColors.surface,

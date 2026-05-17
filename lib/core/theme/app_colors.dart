@@ -30,7 +30,7 @@ class AppColors {
   // Auth / Garage Owner UI
   static const accentIconBg = Color(0xFFFACC15);
   static const accentIconBorder = Color(0xFF212121);
-  static const primaryButtonText = Color(0xFFFFFFFF);
+  static const primaryButtonText = Color(0xFF212121);
   static const stepperActive = Color(0xFFFACC15);
   static const stepperInactive = Color(0xFFD1D1D6);
   static const inputBorder = Color(0xFFE0E0E0);
