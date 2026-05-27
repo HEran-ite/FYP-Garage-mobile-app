@@ -215,7 +215,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                     child: OutlinedButton(
                       onPressed: () => Navigator.of(sheetContext).pop(),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.textPrimary,
+                        foregroundColor: AppColors.primaryButtonText,
                         side: const BorderSide(color: AppColors.inputBorder),
                         padding: const EdgeInsets.symmetric(
                           vertical: AppSpacing.md,

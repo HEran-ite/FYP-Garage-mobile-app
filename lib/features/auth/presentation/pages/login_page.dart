@@ -1,4 +1,3 @@
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -13,6 +12,7 @@ import '../../../../core/widgets/language_dropdown_button.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
+import '../../../../test_support/test_keys.dart';
 import '../widgets/auth_text_field.dart';
 
 /// Login screen with CarCare branding, language dropdown, and localized copy.
@@ -127,30 +127,43 @@ class _LoginBody extends StatelessWidget {
                 _LoginFormCard(isLoading: isLoading),
                 const SizedBox(height: AppSpacing.lg),
                 Center(
-                  child: RichText(
-                    text: TextSpan(
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppColors.textSecondary,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        l10n.noAccount,
+                        style:
+                            Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
+                      ),
+                      InkWell(
+                        key: TestKeys.loginCreateAccountLink,
+                        onTap: () {
+                          context
+                              .read<AuthBloc>()
+                              .add(const AuthRegistrationStarted());
+                          Navigator.of(context)
+                              .pushNamed(RoutePaths.createAccount);
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.xs,
+                            vertical: AppSpacing.xs,
                           ),
-                      children: [
-                        TextSpan(text: l10n.noAccount),
-                        TextSpan(
-                          text: l10n.createAccountLink,
-                          style: const TextStyle(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w600,
+                          child: Text(
+                            l10n.createAccountLink,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
                           ),
-                          recognizer: TapGestureRecognizer()
-                            ..onTap = () {
-                              context
-                                  .read<AuthBloc>()
-                                  .add(const AuthRegistrationStarted());
-                              Navigator.of(context)
-                                  .pushNamed(RoutePaths.createAccount);
-                            },
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xxl),
@@ -219,6 +232,7 @@ class _LoginFormCardState extends State<_LoginFormCard> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             AuthTextField(
+              key: TestKeys.loginEmail,
               label: l10n.email,
               hint: l10n.emailHint,
               prefixIcon: const Icon(
@@ -234,6 +248,7 @@ class _LoginFormCardState extends State<_LoginFormCard> {
             ),
             const SizedBox(height: AppSpacing.lg),
             AuthTextField(
+              key: TestKeys.loginPassword,
               label: l10n.password,
               hint: l10n.passwordPlaceholder,
               prefixIcon: const Icon(
@@ -249,6 +264,7 @@ class _LoginFormCardState extends State<_LoginFormCard> {
             ),
             const SizedBox(height: AppSpacing.xl),
             FilledButton(
+              key: TestKeys.loginSubmit,
               onPressed: widget.isLoading ? null : _submit,
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.primary,

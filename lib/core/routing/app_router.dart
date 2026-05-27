@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../features/appointments/presentation/bloc/appointment_bloc.dart';
+import '../../features/appointments/presentation/bloc/appointment_event.dart';
 import '../../features/appointments/presentation/pages/appointment_list_page.dart';
 import '../../features/notifications/presentation/bloc/notification_bloc.dart';
 import '../../features/notifications/presentation/bloc/notification_event.dart';
@@ -43,7 +45,13 @@ class AppRouter {
       case RoutePaths.appointments:
         return MaterialPageRoute<void>(
           settings: settings,
-          builder: (_) => const AppointmentListPage(),
+          builder: (_) => BlocProvider(
+            create: (_) => sl<AppointmentBloc>()..add(const LoadAppointments()),
+            // AppointmentListPage assumes a Scaffold/Material ancestor
+            // (provided by DashboardPage when used as a tab). When pushed as a
+            // standalone route we have to supply one explicitly.
+            child: const Scaffold(body: AppointmentListPage()),
+          ),
         );
       case RoutePaths.services:
         return MaterialPageRoute<void>(

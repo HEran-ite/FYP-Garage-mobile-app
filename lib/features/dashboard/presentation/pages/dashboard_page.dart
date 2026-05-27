@@ -28,6 +28,7 @@ import '../../../profile/presentation/pages/profile_page.dart';
 import '../../../profile/presentation/pages/set_availability_page.dart';
 import '../../../services/presentation/pages/service_list_page.dart';
 import '../../../availability/domain/repositories/availability_repository.dart';
+import '../../../../test_support/test_keys.dart';
 
 /// Dashboard page - Overview of garage activity with stats, quick actions, and upcoming appointments
 class DashboardPage extends StatefulWidget {
@@ -88,24 +89,28 @@ class _DashboardPageState extends State<DashboardPage> {
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
                     _NavItem(
+                      key: TestKeys.navDashboard,
                       icon: Icons.dashboard_rounded,
                       label: l10n.navDashboard,
                       isSelected: _selectedIndex == 0,
                       onTap: () => setState(() => _selectedIndex = 0),
                     ),
                     _NavItem(
+                      key: TestKeys.navAppointments,
                       icon: Icons.calendar_today_rounded,
                       label: l10n.navAppointments,
                       isSelected: _selectedIndex == 1,
                       onTap: () => setState(() => _selectedIndex = 1),
                     ),
                     _NavItem(
+                      key: TestKeys.navServices,
                       icon: Icons.build_circle_outlined,
                       label: l10n.navServices,
                       isSelected: _selectedIndex == 2,
                       onTap: () => setState(() => _selectedIndex = 2),
                     ),
                     _NavItem(
+                      key: TestKeys.navProfile,
                       icon: Icons.person_outline_rounded,
                       label: l10n.navProfile,
                       isSelected: _selectedIndex == 3,
@@ -124,6 +129,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
 class _NavItem extends StatelessWidget {
   const _NavItem({
+    super.key,
     required this.icon,
     required this.label,
     required this.isSelected,
@@ -221,7 +227,9 @@ class _DashboardContentState extends State<_DashboardContent>
       builder: (context, authState) {
         final l10n = context.l10n;
         final garageName = authState is AuthLoginSuccess
-            ? (authState.user.name.isEmpty ? l10n.myGarage : authState.user.name)
+            ? (authState.user.name.isEmpty
+                  ? l10n.myGarage
+                  : authState.user.name)
             : l10n.myGarage;
         final garageStatus = authState is AuthLoginSuccess
             ? authState.user.garageStatus
@@ -328,9 +336,7 @@ class _DashboardHeader extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: statusColor.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(AppBorderRadius.full),
-                  border: Border.all(
-                    color: statusColor.withOpacity(0.4),
-                  ),
+                  border: Border.all(color: statusColor.withOpacity(0.4)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -355,6 +361,7 @@ class _DashboardHeader extends StatelessWidget {
             final showBadge =
                 state is NotificationLoaded && state.unreadCount > 0;
             return IconButton(
+              key: TestKeys.notificationsButton,
               onPressed: () async {
                 final result = await Navigator.of(
                   context,
@@ -649,8 +656,7 @@ class _DashboardAppointmentCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final isConfirmed = appointment.isApproved || appointment.isCompleted;
-    final display =
-        formatScheduledAtDisplay(l10n, appointment.scheduledAt);
+    final display = formatScheduledAtDisplay(l10n, appointment.scheduledAt);
     final timePart = display.contains(',')
         ? display.split(',').last.trim()
         : display;

@@ -6,6 +6,7 @@ import '../../../../core/locale/l10n_extension.dart';
 import '../../../../core/routing/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../../test_support/test_keys.dart';
 
 class OnboardingPage extends StatefulWidget {
   const OnboardingPage({super.key});
@@ -22,24 +23,23 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
   static List<({String title, String subtitle, IconData icon})> _items(
     AppLocalizations l10n,
-  ) =>
-      [
-        (
-          title: l10n.onboardingTitle1,
-          subtitle: l10n.onboardingSubtitle1,
-          icon: Icons.calendar_month_rounded,
-        ),
-        (
-          title: l10n.onboardingTitle2,
-          subtitle: l10n.onboardingSubtitle2,
-          icon: Icons.build_circle_outlined,
-        ),
-        (
-          title: l10n.onboardingTitle3,
-          subtitle: l10n.onboardingSubtitle3,
-          icon: Icons.notifications_active_rounded,
-        ),
-      ];
+  ) => [
+    (
+      title: l10n.onboardingTitle1,
+      subtitle: l10n.onboardingSubtitle1,
+      icon: Icons.calendar_month_rounded,
+    ),
+    (
+      title: l10n.onboardingTitle2,
+      subtitle: l10n.onboardingSubtitle2,
+      icon: Icons.build_circle_outlined,
+    ),
+    (
+      title: l10n.onboardingTitle3,
+      subtitle: l10n.onboardingSubtitle3,
+      icon: Icons.notifications_active_rounded,
+    ),
+  ];
 
   @override
   void dispose() {
@@ -97,6 +97,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                       ),
                     ),
                     TextButton(
+                      key: TestKeys.onboardingSkip,
                       onPressed: _finish,
                       style: TextButton.styleFrom(
                         foregroundColor: AppColors.textSecondary,
@@ -200,6 +201,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                   width: double.infinity,
                   height: 50,
                   child: FilledButton(
+                    key: TestKeys.onboardingContinue,
                     style: FilledButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: AppColors.textPrimary,

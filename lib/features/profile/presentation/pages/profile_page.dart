@@ -20,6 +20,7 @@ import '../../../ratings/presentation/pages/garage_reviews_page.dart';
 import '../../../settings/data/datasources/garage_settings_remote_datasource.dart';
 import 'profile_edit_page.dart';
 import 'set_availability_page.dart';
+import '../../../../test_support/test_keys.dart';
 
 /// Profile & Settings: garage info, availability, services, settings toggles, logout.
 class ProfilePage extends StatefulWidget {
@@ -558,6 +559,7 @@ class _AvailabilityCard extends StatelessWidget {
                 ),
               ),
               IconButton(
+                key: TestKeys.profileAvailabilityEdit,
                 onPressed: onTap,
                 icon: Icon(Icons.edit_outlined, color: AppColors.primary, size: 24),
               ),
@@ -715,6 +717,7 @@ class _LogoutButton extends StatelessWidget {
     return SizedBox(
       width: double.infinity,
       child: FilledButton.icon(
+        key: TestKeys.profileLogout,
         onPressed: onPressed,
         icon: const Icon(Icons.logout, size: 22, color: Colors.white),
         label: Text(context.l10n.logout),

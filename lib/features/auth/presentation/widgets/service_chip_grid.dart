@@ -135,7 +135,7 @@ class _ServiceChipGridState extends State<ServiceChipGrid> {
               onPressed: _addCustom,
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.primary,
-                foregroundColor: AppColors.textPrimary,
+                foregroundColor: AppColors.primaryButtonText,
               ),
               child: Text(l10n.add),
             ),

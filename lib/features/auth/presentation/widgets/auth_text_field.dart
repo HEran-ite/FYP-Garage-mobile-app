@@ -73,6 +73,7 @@ class _AuthTextFieldState extends State<AuthTextField> {
         ),
         const SizedBox(height: AppSpacing.sm),
         TextFormField(
+          key: widget.key,
           controller: widget.controller,
           obscureText: _obscureText,
           keyboardType: widget.keyboardType,

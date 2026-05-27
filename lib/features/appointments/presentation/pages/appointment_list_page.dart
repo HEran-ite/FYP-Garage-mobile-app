@@ -7,7 +7,6 @@ import '../../../../core/constants/border_radius.dart';
 import '../../../../core/constants/spacing.dart';
 import '../../../../core/error/user_friendly_errors.dart';
 import '../../../../core/locale/date_localization.dart';
-import '../../../../core/locale/date_localization.dart';
 import '../../../../core/locale/appointment_localization.dart';
 import '../../../../core/locale/l10n_extension.dart';
 import '../../../../core/locale/service_localization.dart';
@@ -17,6 +16,7 @@ import '../../data/models/appointment_model.dart';
 import '../bloc/appointment_bloc.dart';
 import '../bloc/appointment_event.dart';
 import '../bloc/appointment_state.dart';
+import '../../../../test_support/test_keys.dart';
 
 /// Appointment list page: exact UI with filter chips, sleek cards, and status-based actions.
 class AppointmentListPage extends StatefulWidget {
@@ -43,9 +43,9 @@ class _AppointmentListPageState extends State<AppointmentListPage> {
     _searchDebounce = Timer(const Duration(milliseconds: 400), () {
       if (!mounted) return;
       final query = _searchController.text.trim();
-      context.read<AppointmentBloc>().add(LoadAppointments(
-        search: query.isEmpty ? null : query,
-      ));
+      context.read<AppointmentBloc>().add(
+        LoadAppointments(search: query.isEmpty ? null : query),
+      );
     });
   }
 
@@ -87,7 +87,8 @@ class _AppointmentListPageState extends State<AppointmentListPage> {
                   children: [
                     Text(
                       l10n.appointmentsTitle,
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(
                             fontWeight: FontWeight.bold,
                             color: AppColors.textPrimary,
                             letterSpacing: -0.2,
@@ -97,9 +98,9 @@ class _AppointmentListPageState extends State<AppointmentListPage> {
                     Text(
                       l10n.appointmentsSubtitle,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppColors.textSecondary,
-                            height: 1.3,
-                          ),
+                        color: AppColors.textSecondary,
+                        height: 1.3,
+                      ),
                     ),
                   ],
                 ),
@@ -110,12 +111,11 @@ class _AppointmentListPageState extends State<AppointmentListPage> {
                 hint: l10n.searchAppointmentsHint,
               ),
               const SizedBox(height: AppSpacing.sm),
-              if (state is AppointmentLoaded || state is AppointmentActionLoading)
+              if (state is AppointmentLoaded ||
+                  state is AppointmentActionLoading)
                 _FilterChips(state: state),
               const SizedBox(height: AppSpacing.md),
-              Expanded(
-                child: _buildBody(context, state),
-              ),
+              Expanded(child: _buildBody(context, state)),
             ],
           ),
         );
@@ -160,13 +160,15 @@ class _AppointmentListPageState extends State<AppointmentListPage> {
     }
     if (list != null && list.isEmpty) {
       final l10n = context.l10n;
-      final hasSearch = (loaded?.searchQuery ?? actionLoading?.searchQuery)?.isNotEmpty == true;
+      final hasSearch =
+          (loaded?.searchQuery ?? actionLoading?.searchQuery)?.isNotEmpty ==
+          true;
       return Center(
         child: Text(
           hasSearch ? l10n.noAppointmentsMatchSearch : l10n.noAppointments,
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: AppColors.textSecondary,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyLarge?.copyWith(color: AppColors.textSecondary),
         ),
       );
     }
@@ -182,13 +184,14 @@ class _AppointmentListPageState extends State<AppointmentListPage> {
                 toUserFriendlyMessage(state.message, l10n),
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
+                  color: AppColors.textSecondary,
+                ),
               ),
               const SizedBox(height: AppSpacing.md),
               FilledButton(
-                onPressed: () =>
-                    context.read<AppointmentBloc>().add(const LoadAppointments()),
+                onPressed: () => context.read<AppointmentBloc>().add(
+                  const LoadAppointments(),
+                ),
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: AppColors.textPrimary,
@@ -205,10 +208,7 @@ class _AppointmentListPageState extends State<AppointmentListPage> {
 }
 
 class _SearchBar extends StatelessWidget {
-  const _SearchBar({
-    required this.controller,
-    required this.hint,
-  });
+  const _SearchBar({required this.controller, required this.hint});
 
   final TextEditingController controller;
   final String hint;
@@ -218,13 +218,18 @@ class _SearchBar extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
       child: TextField(
+        key: TestKeys.appointmentSearch,
         controller: controller,
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.textSecondary,
-              ),
-          prefixIcon: Icon(Icons.search_rounded, size: 22, color: AppColors.textSecondary),
+          hintStyle: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+          prefixIcon: Icon(
+            Icons.search_rounded,
+            size: 22,
+            color: AppColors.textSecondary,
+          ),
           filled: true,
           fillColor: AppColors.surface,
           border: OutlineInputBorder(
@@ -236,9 +241,9 @@ class _SearchBar extends StatelessWidget {
             vertical: AppSpacing.sm + 2,
           ),
         ),
-        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppColors.textPrimary,
-            ),
+        style: Theme.of(
+          context,
+        ).textTheme.bodyMedium?.copyWith(color: AppColors.textPrimary),
       ),
     );
   }
@@ -255,23 +260,42 @@ class _FilterChips extends StatelessWidget {
       return const SizedBox.shrink();
     }
     final s = state;
-    final countAll = s is AppointmentLoaded ? s.countAll : (s as AppointmentActionLoading).countAll;
-    final countPending = s is AppointmentLoaded ? s.countPending : (s as AppointmentActionLoading).countPending;
-    final countApproved = s is AppointmentLoaded ? s.countApproved : (s as AppointmentActionLoading).countApproved;
-    final countInProgress = s is AppointmentLoaded ? s.countInProgress : (s as AppointmentActionLoading).countInProgress;
-    final countCompleted = s is AppointmentLoaded ? s.countCompleted : (s as AppointmentActionLoading).countCompleted;
-    final countRejected = s is AppointmentLoaded ? s.countRejected : (s as AppointmentActionLoading).countRejected;
-    final filter = s is AppointmentLoaded ? s.filter : (s as AppointmentActionLoading).filter;
+    final countAll = s is AppointmentLoaded
+        ? s.countAll
+        : (s as AppointmentActionLoading).countAll;
+    final countPending = s is AppointmentLoaded
+        ? s.countPending
+        : (s as AppointmentActionLoading).countPending;
+    final countApproved = s is AppointmentLoaded
+        ? s.countApproved
+        : (s as AppointmentActionLoading).countApproved;
+    final countInProgress = s is AppointmentLoaded
+        ? s.countInProgress
+        : (s as AppointmentActionLoading).countInProgress;
+    final countCompleted = s is AppointmentLoaded
+        ? s.countCompleted
+        : (s as AppointmentActionLoading).countCompleted;
+    final countRejected = s is AppointmentLoaded
+        ? s.countRejected
+        : (s as AppointmentActionLoading).countRejected;
+    final filter = s is AppointmentLoaded
+        ? s.filter
+        : (s as AppointmentActionLoading).filter;
 
     final l10n = context.l10n;
     final bloc = context.read<AppointmentBloc>();
     final filters = [
-      (AppointmentListFilter.all, l10n.filterAll, countAll),
-      (AppointmentListFilter.pending, l10n.statusPending, countPending),
-      (AppointmentListFilter.approved, l10n.statusApprovedAppt, countApproved),
-      (AppointmentListFilter.inProgress, l10n.statusInProgress, countInProgress),
-      (AppointmentListFilter.completed, l10n.statusCompleted, countCompleted),
-      (AppointmentListFilter.rejected, l10n.statusRejected, countRejected),
+      (AppointmentListFilter.all, l10n.filterAll, countAll, TestKeys.appointmentFilterAll),
+      (AppointmentListFilter.pending, l10n.statusPending, countPending, TestKeys.appointmentFilterPending),
+      (AppointmentListFilter.approved, l10n.statusApprovedAppt, countApproved, TestKeys.appointmentFilterApproved),
+      (
+        AppointmentListFilter.inProgress,
+        l10n.statusInProgress,
+        countInProgress,
+        TestKeys.appointmentFilterInProgress,
+      ),
+      (AppointmentListFilter.completed, l10n.statusCompleted, countCompleted, TestKeys.appointmentFilterCompleted),
+      (AppointmentListFilter.rejected, l10n.statusRejected, countRejected, TestKeys.appointmentFilterRejected),
     ];
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -280,6 +304,7 @@ class _FilterChips extends StatelessWidget {
         children: [
           for (final f in filters)
             Padding(
+              key: f.$4,
               padding: const EdgeInsets.only(right: AppSpacing.sm),
               child: Material(
                 color: Colors.transparent,
@@ -296,26 +321,22 @@ class _FilterChips extends StatelessWidget {
                       color: filter == f.$1
                           ? AppColors.primary
                           : AppColors.background,
-                      borderRadius:
-                          BorderRadius.circular(AppBorderRadius.full),
+                      borderRadius: BorderRadius.circular(AppBorderRadius.full),
                       border: filter == f.$1
                           ? null
-                          : Border.all(
-                              color: AppColors.inputBorder,
-                              width: 1,
-                            ),
+                          : Border.all(color: AppColors.inputBorder, width: 1),
                     ),
                     child: Text(
                       l10n.filterChipCount(f.$2, f.$3),
                       style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                            fontSize: 15,
-                            color: filter == f.$1
-                                ? AppColors.textPrimary
-                                : AppColors.textSecondary,
-                            fontWeight: filter == f.$1
-                                ? FontWeight.w600
-                                : FontWeight.w500,
-                          ),
+                        fontSize: 15,
+                        color: filter == f.$1
+                            ? AppColors.textPrimary
+                            : AppColors.textSecondary,
+                        fontWeight: filter == f.$1
+                            ? FontWeight.w600
+                            : FontWeight.w500,
+                      ),
                     ),
                   ),
                 ),
@@ -328,18 +349,15 @@ class _FilterChips extends StatelessWidget {
 }
 
 class _AppointmentCard extends StatelessWidget {
-  const _AppointmentCard({
-    required this.appointment,
-    this.actionLoadingId,
-  });
+  const _AppointmentCard({required this.appointment, this.actionLoadingId});
 
   final AppointmentModel appointment;
   final String? actionLoadingId;
 
   String _customerName(AppLocalizations l10n) =>
       appointment.driverName?.isNotEmpty == true
-          ? appointment.driverName!
-          : l10n.driver;
+      ? appointment.driverName!
+      : l10n.driver;
 
   String _vehicle(AppLocalizations l10n) {
     if (appointment.vehicles.isNotEmpty) {
@@ -369,8 +387,8 @@ class _AppointmentCard extends StatelessWidget {
 
   String _contact(AppLocalizations l10n) =>
       appointment.driverPhone?.isNotEmpty == true
-          ? appointment.driverPhone!
-          : l10n.emDash;
+      ? appointment.driverPhone!
+      : l10n.emDash;
 
   String _scheduledDisplay(AppLocalizations l10n) =>
       formatScheduledAtDisplay(l10n, appointment.scheduledAt);
@@ -382,9 +400,7 @@ class _AppointmentCard extends StatelessWidget {
 
   String _time(AppLocalizations l10n) {
     final display = _scheduledDisplay(l10n);
-    return display.contains(',')
-        ? display.split(',').last.trim()
-        : l10n.emDash;
+    return display.contains(',') ? display.split(',').last.trim() : l10n.emDash;
   }
 
   String _serviceLocation(AppLocalizations l10n) {
@@ -423,16 +439,13 @@ class _AppointmentCard extends StatelessWidget {
                 child: Text(
                   _customerName(l10n),
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
-                        letterSpacing: -0.2,
-                      ),
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                    letterSpacing: -0.2,
+                  ),
                 ),
               ),
-              _StatusChipDropdown(
-                appointment: appointment,
-                loading: loading,
-              ),
+              _StatusChipDropdown(appointment: appointment, loading: loading),
             ],
           ),
           const SizedBox(height: AppSpacing.xs),
@@ -440,39 +453,30 @@ class _AppointmentCard extends StatelessWidget {
           Text(
             _vehicle(l10n),
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textSecondary,
-                  height: 1.35,
-                ),
+              color: AppColors.textSecondary,
+              height: 1.35,
+            ),
           ),
           const SizedBox(height: AppSpacing.xs),
           // License plate
           Text(
             _plate(l10n),
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
           ),
           const SizedBox(height: AppSpacing.sm),
           // Detail rows with teal/blue icons
-          _DetailRow(
-            icon: Icons.calendar_today_rounded,
-            text: _date(l10n),
-          ),
+          _DetailRow(icon: Icons.calendar_today_rounded, text: _date(l10n)),
           const SizedBox(height: AppSpacing.xs),
-          _DetailRow(
-            icon: Icons.access_time_rounded,
-            text: _time(l10n),
-          ),
+          _DetailRow(icon: Icons.access_time_rounded, text: _time(l10n)),
           const SizedBox(height: AppSpacing.xs),
           _DetailRow(
             icon: Icons.location_on_outlined,
             text: _serviceLocation(l10n),
           ),
           const SizedBox(height: AppSpacing.xs),
-          _DetailRow(
-            icon: Icons.phone_outlined,
-            text: _contact(l10n),
-          ),
+          _DetailRow(icon: Icons.phone_outlined, text: _contact(l10n)),
         ],
       ),
     );
@@ -496,9 +500,9 @@ class _DetailRow extends StatelessWidget {
           child: Text(
             text,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textSecondary,
-                  height: 1.35,
-                ),
+              color: AppColors.textSecondary,
+              height: 1.35,
+            ),
           ),
         ),
       ],
@@ -556,10 +560,7 @@ const List<String> _statusOptionValues = [
 
 /// Status chip in the card header; tap to open dropdown and change status.
 class _StatusChipDropdown extends StatelessWidget {
-  const _StatusChipDropdown({
-    required this.appointment,
-    required this.loading,
-  });
+  const _StatusChipDropdown({required this.appointment, required this.loading});
 
   final AppointmentModel appointment;
   final bool loading;
@@ -586,10 +587,7 @@ class _StatusChipDropdown extends StatelessWidget {
         child: SizedBox(
           width: 22,
           height: 22,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: fg,
-          ),
+          child: CircularProgressIndicator(strokeWidth: 2, color: fg),
         ),
       );
     }
@@ -604,37 +602,35 @@ class _StatusChipDropdown extends StatelessWidget {
       color: AppColors.surface,
       padding: EdgeInsets.zero,
       constraints: const BoxConstraints(minWidth: 160),
-      itemBuilder: (context) => _statusOptionValues
-          .map((statusValue) {
-            final optionLabel = localizedAppointmentStatus(l10n, statusValue);
-            return PopupMenuItem<String>(
-              value: statusValue,
-              height: 42,
-              child: Row(
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: _statusBgColor(statusValue),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    optionLabel,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppColors.textPrimary,
-                          fontWeight: statusValue == currentStatus
-                              ? FontWeight.w600
-                              : FontWeight.w500,
-                        ),
-                  ),
-                ],
+      itemBuilder: (context) => _statusOptionValues.map((statusValue) {
+        final optionLabel = localizedAppointmentStatus(l10n, statusValue);
+        return PopupMenuItem<String>(
+          value: statusValue,
+          height: 42,
+          child: Row(
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: _statusBgColor(statusValue),
+                  shape: BoxShape.circle,
+                ),
               ),
-            );
-          })
-          .toList(),
+              const SizedBox(width: 10),
+              Text(
+                optionLabel,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textPrimary,
+                  fontWeight: statusValue == currentStatus
+                      ? FontWeight.w600
+                      : FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
       onSelected: (String newStatus) {
         final currentValue = appointment.status.toUpperCase();
         if (newStatus != currentValue) {
@@ -656,10 +652,10 @@ class _StatusChipDropdown extends StatelessWidget {
             Text(
               currentLabel,
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: fg,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                  ),
+                color: fg,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
             ),
             const SizedBox(width: 4),
             Icon(Icons.keyboard_arrow_down_rounded, size: 20, color: fg),

@@ -281,7 +281,7 @@ class _SetAvailabilityPageState extends State<SetAvailabilityPage> {
                         onPressed: _saving ? null : _save,
                         style: FilledButton.styleFrom(
                           backgroundColor: AppColors.primary,
-                          foregroundColor: AppColors.textPrimary,
+                          foregroundColor: AppColors.primaryButtonText,
                           padding: const EdgeInsets.symmetric(
                             vertical: AppSpacing.md,
                           ),

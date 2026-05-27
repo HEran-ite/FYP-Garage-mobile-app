@@ -135,7 +135,7 @@ class _ServicesEditPageState extends State<ServicesEditPage> {
                 onPressed: _isSaving ? null : _save,
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.primary,
-                  foregroundColor: AppColors.textPrimary,
+                  foregroundColor: AppColors.primaryButtonText,
                   padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(AppBorderRadius.md),

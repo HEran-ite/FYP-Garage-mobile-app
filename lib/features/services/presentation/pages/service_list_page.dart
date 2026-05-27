@@ -12,6 +12,7 @@ import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_event.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
 import '../../../auth/presentation/widgets/service_chip_grid.dart';
+import '../../../../test_support/test_keys.dart';
 
 /// Services tab: edit services directly (chip grid + Save), no extra navigation.
 class ServiceListPage extends StatefulWidget {
@@ -170,10 +171,11 @@ class _ServiceListPageState extends State<ServiceListPage> {
                   ),
                   const SizedBox(height: AppSpacing.xl),
                   FilledButton(
+                    key: TestKeys.servicesSave,
                     onPressed: _isSaving ? null : () => _save(user),
                     style: FilledButton.styleFrom(
                       backgroundColor: AppColors.primary,
-                      foregroundColor: AppColors.textPrimary,
+                      foregroundColor: AppColors.primaryButtonText,
                       padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(AppBorderRadius.md),

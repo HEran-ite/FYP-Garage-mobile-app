@@ -35,15 +35,20 @@ import '../features/ratings/data/datasources/garage_ratings_remote_datasource.da
 import '../features/ratings/data/datasources/garage_ratings_remote_datasource_impl.dart';
 import '../features/settings/data/datasources/garage_settings_remote_datasource.dart';
 import '../features/settings/data/datasources/garage_settings_remote_datasource_impl.dart';
+import '../test_support/fake_datasources.dart';
 
 final GetIt sl = GetIt.instance;
 
-/// Sets up dependency injection (repositories, use cases, BLoCs, data sources)
-Future<void> setupDependencyInjection() async {
+/// Sets up dependency injection (repositories, use cases, BLoCs, data sources).
+/// When [useTestFakes] is true, remote data sources return canned data for E2E tests.
+/// Skips registration if the locator is already configured (e.g. integration tests).
+Future<void> setupDependencyInjection({bool useTestFakes = false}) async {
+  if (sl.isRegistered<AuthBloc>()) return;
+
   // Auth
   sl.registerLazySingleton<AuthSessionStorage>(() => AuthSessionStorageImpl());
   sl.registerLazySingleton<AuthRemoteDataSource>(
-    () => AuthRemoteDataSourceImpl(),
+    () => useTestFakes ? FakeAuthRemoteDataSource() : AuthRemoteDataSourceImpl(),
   );
   sl.registerLazySingleton<AuthRepository>(
     () => AuthRepositoryImpl(sl(), sl()),
@@ -84,7 +89,9 @@ Future<void> setupDependencyInjection() async {
 
   // Appointments (garage)
   sl.registerLazySingleton<AppointmentsRemoteDataSource>(
-    () => AppointmentsRemoteDataSourceImpl(),
+    () => useTestFakes
+        ? FakeAppointmentsRemoteDataSource()
+        : AppointmentsRemoteDataSourceImpl(),
   );
   sl.registerLazySingleton<AppointmentsRepository>(
     () => AppointmentsRepositoryImpl(sl()),
@@ -93,7 +100,9 @@ Future<void> setupDependencyInjection() async {
 
   // Availability (garage time slots)
   sl.registerLazySingleton<AvailabilityRemoteDataSource>(
-    () => AvailabilityRemoteDataSourceImpl(),
+    () => useTestFakes
+        ? FakeAvailabilityRemoteDataSource()
+        : AvailabilityRemoteDataSourceImpl(),
   );
   sl.registerLazySingleton<AvailabilityRepository>(
     () => AvailabilityRepositoryImpl(sl<AvailabilityRemoteDataSource>()),
@@ -101,7 +110,9 @@ Future<void> setupDependencyInjection() async {
 
   // Notifications (garage: GET /garages/notifications)
   sl.registerLazySingleton<NotificationsRemoteDataSource>(
-    () => NotificationsRemoteDataSourceImpl(),
+    () => useTestFakes
+        ? FakeNotificationsRemoteDataSource()
+        : NotificationsRemoteDataSourceImpl(),
   );
   sl.registerLazySingleton<NotificationsRepository>(
     () => NotificationsRepositoryImpl(sl()),
@@ -121,11 +132,15 @@ Future<void> setupDependencyInjection() async {
 
   // Garage settings (GET/PUT /garages/settings)
   sl.registerLazySingleton<GarageSettingsRemoteDataSource>(
-    () => GarageSettingsRemoteDataSourceImpl(),
+    () => useTestFakes
+        ? FakeGarageSettingsRemoteDataSource()
+        : GarageSettingsRemoteDataSourceImpl(),
   );
 
   // Garage ratings/reviews (GET /garages/ratings)
   sl.registerLazySingleton<GarageRatingsRemoteDataSource>(
-    () => GarageRatingsRemoteDataSourceImpl(),
+    () => useTestFakes
+        ? FakeGarageRatingsRemoteDataSource()
+        : GarageRatingsRemoteDataSourceImpl(),
   );
 }

@@ -46,16 +46,21 @@ void main() async {
     }
   }
 
-  await setupDependencyInjection();
+  if (!sl.isRegistered<AuthBloc>()) {
+    await setupDependencyInjection();
+  }
   final prefs = await SharedPreferences.getInstance();
   final localeService = LocaleService(prefs);
   final hasSeenOnboarding = prefs.getBool(OnboardingPage.seenKey) ?? false;
 
-  runApp(GarageUpApp(
-    localeService: localeService,
-    initialRoute:
-        hasSeenOnboarding ? RoutePaths.login : RoutePaths.onboarding,
-  ));
+  runApp(
+    GarageUpApp(
+      localeService: localeService,
+      initialRoute: hasSeenOnboarding
+          ? RoutePaths.login
+          : RoutePaths.onboarding,
+    ),
+  );
 }
 
 class GarageUpApp extends StatefulWidget {

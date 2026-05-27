@@ -615,7 +615,7 @@ class _Step2ContentState extends State<_Step2Content> {
                   const AuthRegistrationStep2Back(),
                 ),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.textPrimary,
+                  foregroundColor: AppColors.primaryButtonText,
                   side: const BorderSide(color: AppColors.stepperInactive),
                   padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
                   shape: RoundedRectangleBorder(
@@ -796,7 +796,7 @@ class _Step3ContentState extends State<_Step3Content> {
                   const AuthRegistrationStep3Back(),
                 ),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.textPrimary,
+                  foregroundColor: AppColors.primaryButtonText,
                   side: const BorderSide(color: AppColors.stepperInactive),
                   padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
                   shape: RoundedRectangleBorder(
